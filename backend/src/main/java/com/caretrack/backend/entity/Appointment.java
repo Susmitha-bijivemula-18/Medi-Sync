@@ -16,6 +16,9 @@ public class Appointment {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(name = "patient_id")
+    private String patientId = "";
+
     @Column(name = "patient_name", nullable = false)
     private String patientName;
 
@@ -28,10 +31,10 @@ public class Appointment {
     @Column(name = "patient_phone", nullable = false)
     private String patientPhone = "";
 
-    @Column(name = "problem_description", nullable = false)
+    @Column(name = "problem_description", length = 1000)
     private String problemDescription = "";
 
-    @Column(name = "problem_category", nullable = false)
+    @Column(name = "problem_category")
     private String problemCategory = "";
 
     @ManyToOne(fetch = FetchType.EAGER)
@@ -42,11 +45,41 @@ public class Appointment {
     @Column(name = "appointment_date", nullable = false)
     private LocalDate appointmentDate = LocalDate.now();
 
+    @Column(name = "appointment_time")
+    private String appointmentTime = "10:00 AM";
+
     @Column(nullable = false)
-    private String status = "pending";
+    private String status = "waiting";
+
+    @Column(name = "queue_status")
+    private String queueStatus = "waiting";
 
     @Column(name = "token_number", nullable = false)
     private String tokenNumber = "";
+
+    @Column(name = "vitals_bp")
+    private String vitalsBp = "";
+
+    @Column(name = "vitals_pulse")
+    private String vitalsPulse = "";
+
+    @Column(name = "vitals_temp")
+    private String vitalsTemp = "";
+
+    @Column(name = "vitals_weight")
+    private String vitalsWeight = "";
+
+    @Column(name = "clinical_notes", length = 2000)
+    private String clinicalNotes = "";
+
+    @Column(name = "prescription", length = 2000)
+    private String prescription = "";
+
+    @Column(name = "called_at")
+    private String calledAt = "";
+
+    @Column(name = "completed_at")
+    private String completedAt = "";
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

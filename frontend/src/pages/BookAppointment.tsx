@@ -1,27 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Search, Filter, Stethoscope, Star, User, ArrowRight, Calendar, Clock } from 'lucide-react';
-import { fetchDoctors, type Doctor } from '../lib/supabase';
-
-// Extended type for UI
-interface ExtendedDoctor extends Doctor {
-  availableStatus?: string;
-  nextSlot?: string;
-  rating?: string;
-  avatar?: string;
-}
-
-const mockDoctors: ExtendedDoctor[] = [
-  { id: '1', full_name: "Dr. Ananya Rao", specialization: "Cardiology", experience_years: 12, qualification: "MD, DM Cardiology", consultation_fee: 800, available_days: ['Monday', 'Wednesday'], available_from: '10:00', available_to: '16:00', is_active: true, created_at: '', availableStatus: 'Available today', nextSlot: '2:30 PM', rating: '4.9', avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&q=80' },
-  { id: '2', full_name: "Dr. Rahul Sharma", specialization: "Dermatology", experience_years: 8, qualification: "MD Dermatology", consultation_fee: 600, available_days: ['Tuesday', 'Thursday'], available_from: '09:00', available_to: '14:00', is_active: true, created_at: '', availableStatus: 'Available tomorrow', nextSlot: '9:15 AM', rating: '4.8', avatar: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=150&h=150&fit=crop&q=80' },
-  { id: '3', full_name: "Dr. Priya Nair", specialization: "General Medicine", experience_years: 15, qualification: "MD General Medicine", consultation_fee: 500, available_days: ['Monday', 'Tuesday'], available_from: '10:00', available_to: '18:00', is_active: true, created_at: '', availableStatus: 'Available today', nextSlot: '11:45 AM', rating: '4.9', avatar: 'https://images.unsplash.com/photo-1594824436951-7f12bc80fa52?w=150&h=150&fit=crop&q=80' },
-  { id: '4', full_name: "Dr. Arjun Reddy", specialization: "Orthopedics", experience_years: 10, qualification: "MS Orthopedics", consultation_fee: 1000, available_days: ['Wednesday', 'Friday'], available_from: '11:00', available_to: '17:00', is_active: true, created_at: '', availableStatus: 'Available Wednesday', nextSlot: '1:00 PM', rating: '4.7', avatar: 'https://images.unsplash.com/photo-1537368910025-7028a411333c?w=150&h=150&fit=crop&q=80' },
-  { id: '5', full_name: "Dr. Meera Kapoor", specialization: "Pediatrics", experience_years: 14, qualification: "MD Pediatrics", consultation_fee: 700, available_days: ['Monday', 'Thursday'], available_from: '09:00', available_to: '13:00', is_active: true, created_at: '', availableStatus: 'Available today', nextSlot: '4:00 PM', rating: '4.8', avatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=150&h=150&fit=crop&q=80' },
-  { id: '6', full_name: "Dr. Vikram Singh", specialization: "Neurology", experience_years: 18, qualification: "MD, DM Neurology", consultation_fee: 1200, available_days: ['Tuesday', 'Friday'], available_from: '14:00', available_to: '19:00', is_active: true, created_at: '', availableStatus: 'Available Thursday', nextSlot: '10:30 AM', rating: '4.9', avatar: 'https://images.unsplash.com/photo-1527613426441-4da17471b66d?w=150&h=150&fit=crop&q=80' },
-  { id: '7', full_name: "Dr. Sneha Iyer", specialization: "Gynecology", experience_years: 11, qualification: "MD Obstetrics & Gynecology", consultation_fee: 800, available_days: ['Monday', 'Wednesday'], available_from: '10:00', available_to: '16:00', is_active: true, created_at: '', availableStatus: 'Available today', nextSlot: '1:15 PM', rating: '4.8', avatar: 'https://images.unsplash.com/photo-1612349316228-5942a9b489c2?w=150&h=150&fit=crop&q=80' },
-  { id: '8', full_name: "Dr. Karthik Rao", specialization: "ENT", experience_years: 9, qualification: "MS ENT", consultation_fee: 600, available_days: ['Tuesday', 'Thursday'], available_from: '10:00', available_to: '15:00', is_active: true, created_at: '', availableStatus: 'Available tomorrow', nextSlot: '3:00 PM', rating: '4.7', avatar: '' }, 
-];
+import { mockDoctors, getMergedDoctors, type ExtendedDoctor } from '../lib/doctors';
 
 const specializations = [
   'All', 
@@ -37,34 +18,38 @@ const specializations = [
 
 export function BookAppointment() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedSpecialty = searchParams.get('specialty');
+  
   const [doctors, setDoctors] = useState<ExtendedDoctor[]>(mockDoctors);
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState('All');
+  
+  // Directly derive active filter from searchParams URL
+  const activeFilter = (requestedSpecialty && specializations.find(s => s.toLowerCase() === requestedSpecialty.toLowerCase())) || 'All';
+
+  const handleFilterSelect = (spec: string) => {
+    if (spec === 'All') {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('specialty');
+      setSearchParams(newParams);
+    } else {
+      setSearchParams({ specialty: spec });
+    }
+  };
+
+  async function loadDoctors() {
+    const mergedData = await getMergedDoctors();
+    setDoctors(mergedData);
+  }
 
   useEffect(() => {
     loadDoctors();
   }, []);
 
-  async function loadDoctors() {
-    try {
-      const data = await fetchDoctors();
-      if (data && data.length > 0) {
-        // Merge our mock UI details (avatars, status, etc) with database data
-        const mergedData = data.map(dbDoc => {
-          const match = mockDoctors.find(m => m.full_name === dbDoc.full_name);
-          return match ? { ...dbDoc, ...match } : { ...dbDoc, availableStatus: 'Available today', nextSlot: '10:00 AM', rating: '4.5', avatar: '' };
-        });
-        setDoctors(mergedData);
-      }
-    } catch (e) {
-      // Keep mockDoctors on error
-    }
-  }
-
   const filteredDoctors = doctors.filter((doc) => {
-    const matchesSearch = doc.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      doc.specialization.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (doc.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (doc.specialization || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = activeFilter === 'All' || doc.specialization === activeFilter;
     return matchesSearch && matchesFilter;
   });
@@ -128,7 +113,7 @@ export function BookAppointment() {
           {specializations.map((spec) => (
             <button
               key={spec}
-              onClick={() => setActiveFilter(spec)}
+              onClick={() => handleFilterSelect(spec)}
               className={`flex-shrink-0 px-4 py-2 rounded-full text-[13px] font-semibold transition-all duration-200 border ${
                 activeFilter === spec
                   ? 'bg-foreground text-background border-foreground shadow-sm'
@@ -165,7 +150,7 @@ export function BookAppointment() {
               We couldn't find any doctors matching your search. Try clearing your filters.
             </p>
             <button 
-              onClick={() => { setSearchQuery(''); setActiveFilter('All'); }}
+              onClick={() => { setSearchQuery(''); handleFilterSelect('All'); }}
               className="mt-6 px-6 py-2.5 bg-foreground text-background rounded-lg font-medium text-sm hover:opacity-90"
             >
               Clear Filters

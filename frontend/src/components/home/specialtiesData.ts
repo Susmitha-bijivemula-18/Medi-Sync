@@ -1,0 +1,136 @@
+export type Language = 'en' | 'te';
+
+export interface SpecialtyDirectoryItem {
+  key: string;
+  name: string;
+  nameTe: string;
+  description: string;
+  descriptionTe: string;
+  iconName: 'heart' | 'sparkles' | 'stethoscope' | 'activity' | 'baby' | 'brain' | 'flower' | 'ear';
+}
+
+export const specialtiesDirectory: SpecialtyDirectoryItem[] = [
+  {
+    key: 'Cardiology',
+    name: 'Cardiology',
+    nameTe: 'కార్డియాలజీ (గుండె సంరక్షణ)',
+    description: 'Heart and cardiovascular care',
+    descriptionTe: 'గుండె మరియు రక్తనాళాల సంరక్షణ',
+    iconName: 'heart',
+  },
+  {
+    key: 'Dermatology',
+    name: 'Dermatology',
+    nameTe: 'డెర్మటాలజీ (చర్మ & జుట్టు సంరక్షణ)',
+    description: 'Skin, hair, and nail care',
+    descriptionTe: 'చర్మం, జుట్టు మరియు గోళ్ల సంరక్షణ',
+    iconName: 'sparkles',
+  },
+  {
+    key: 'General Medicine',
+    name: 'General Medicine',
+    nameTe: 'జనరల్ మెడిసిన్ (సాధారణ ఆరోగ్యం)',
+    description: 'Everyday health and preventive care',
+    descriptionTe: 'సాధారణ ఆరోగ్యం మరియు నివారణ సంరక్షణ',
+    iconName: 'stethoscope',
+  },
+  {
+    key: 'Orthopedics',
+    name: 'Orthopedics',
+    nameTe: 'ఆర్థోపెడిక్స్ (ఎముకలు & కీళ్ళు)',
+    description: 'Bone, joint, and muscle care',
+    descriptionTe: 'ఎముకలు, కీళ్ళు మరియు కండరాల సంరక్షణ',
+    iconName: 'activity',
+  },
+  {
+    key: 'Pediatrics',
+    name: 'Pediatrics',
+    nameTe: 'పీడియాట్రిక్స్ (పిల్లల ఆరోగ్యం)',
+    description: 'Healthcare for babies and children',
+    descriptionTe: 'శిశువులు మరియు పిల్లల ఆరోగ్య సంరక్షణ',
+    iconName: 'baby',
+  },
+  {
+    key: 'Neurology',
+    name: 'Neurology',
+    nameTe: 'న్యూరాలజీ (మెదడు & నరాలు)',
+    description: 'Brain, spine, and nerve care',
+    descriptionTe: 'మెదడు, వెన్నెముక మరియు నరాల సంరక్షణ',
+    iconName: 'brain',
+  },
+  {
+    key: 'Gynecology',
+    name: 'Gynecology',
+    nameTe: 'గైనకాలజీ (స్త్రీల ఆరోగ్యం)',
+    description: "Women's reproductive health",
+    descriptionTe: 'స్త్రీల పునరుత్పత్తి మరియు ప్రసూతి ఆరోగ్యం',
+    iconName: 'flower',
+  },
+  {
+    key: 'ENT',
+    name: 'ENT',
+    nameTe: 'ఈ.ఎన్.టి (చెవి, ముక్కు, గొంతు)',
+    description: 'Ear, nose, and throat care',
+    descriptionTe: 'చెవి, ముక్కు మరియు గొంతు సంరక్షణ',
+    iconName: 'ear',
+  },
+];
+
+export const editorialI18n = {
+  en: {
+    eyebrow: 'OUR SPECIALITIES',
+    heading: 'Find the care you need.',
+    subheading: 'Explore our medical departments and find the right doctor for your needs.',
+    searchPlaceholder: 'Search specialties or doctors',
+    allDepartments: 'All Departments',
+    viewDoctors: 'View Doctors',
+    hideDoctors: 'Hide Doctors',
+    specialistsIn: 'Specialists in',
+    availablePhysicians: 'Consulting Specialists',
+    experience: 'experience',
+    consultationFee: 'Consultation Fee',
+    nextAvailable: 'Next Available',
+    viewProfile: 'View Profile',
+    bookAppointment: 'Book Appointment',
+    noResultsTitle: 'No matching specialties or doctors found',
+    noResultsDesc: 'Try adjusting your search terms or select a department to see all available physicians.',
+    clearSearch: 'Clear search',
+    generalConsultNote: 'Unsure which department you need? Start with General Medicine for comprehensive initial assessment.',
+    bookGeneralDoc: 'Consult General Medicine',
+    modalTitle: 'Doctor Profile',
+    qualifications: 'Qualifications',
+    consultingDays: 'Consulting Days',
+    consultingHours: 'Hours',
+    aboutDoctor: 'About the Doctor',
+    close: 'Close',
+    proceedBooking: 'Proceed to Book Appointment',
+  },
+  te: {
+    eyebrow: 'మా వైద్య విభాగాలు',
+    heading: 'మీకు అవసరమైన వైద్య సంరక్షణను పొందండి.',
+    subheading: 'మా వైద్య విభాగాలను పరిశీలించి, మీ అవసరాలకు తగిన సరైన వైద్యుడిని కనుగొనండి.',
+    searchPlaceholder: 'విభాగాలు లేదా వైద్యుల కోసం వెతకండి',
+    allDepartments: 'అన్ని విభాగాలు',
+    viewDoctors: 'వైద్యులను చూడండి',
+    hideDoctors: 'వైద్యులను దాచండి',
+    specialistsIn: 'విభాగ నిపుణులు:',
+    availablePhysicians: 'అందుబాటులో ఉన్న నిపుణులు',
+    experience: 'అనుభవం',
+    consultationFee: 'సంప్రదింపు రుసుము',
+    nextAvailable: 'అందుబాటు సమయం',
+    viewProfile: 'వివరాలు చూడండి',
+    bookAppointment: 'అపాయింట్‌మెంట్ బుక్ చేయండి',
+    noResultsTitle: 'ఎలాంటి విభాగాలు లేదా వైద్యులు కనుగొనబడలేదు',
+    noResultsDesc: 'మీ వెతుకులాట పదాన్ని మార్చి ప్రయత్నించండి లేదా అన్ని వైద్యులను చూడటానికి విభాగాన్ని ఎంచుకోండి.',
+    clearSearch: 'వెతుకులాట క్లియర్ చేయండి',
+    generalConsultNote: 'ఏ విభాగాన్ని సంప్రదించాలో తెలియదా? ప్రాథమిక పరీక్ష కోసం జనరల్ మెడిసిన్ (సాధారణ వైద్యం) తో ప్రారంభించండి.',
+    bookGeneralDoc: 'జనరల్ మెడిసిన్ బుక్ చేయండి',
+    modalTitle: 'వైద్యుడి వివరాలు',
+    qualifications: 'అర్హతలు',
+    consultingDays: 'సంప్రదింపు రోజులు',
+    consultingHours: 'సమయాలు',
+    aboutDoctor: 'వైద్యుడి గురించి',
+    close: 'మూసివేయి',
+    proceedBooking: 'అపాయింట్‌మెంట్ బుకింగ్‌కు వెళ్లండి',
+  },
+};

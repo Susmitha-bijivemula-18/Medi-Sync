@@ -1,19 +1,33 @@
-const API_BASE_URL = 'http://localhost:8080/api';
+export const API_BASE_URL = 'http://localhost:8080/api';
 
 // ─── Type definitions ────────────────────────────────────
 
 export interface Doctor {
   id: string;
-  full_name: string;
+  full_name?: string;
+  fullName?: string;
   specialization: string;
   qualification: string;
-  experience_years: number;
-  consultation_fee: number;
-  available_days: string[];
-  available_from: string;
-  available_to: string;
-  is_active: boolean;
-  created_at: string;
+  experience_years?: number;
+  experienceYears?: number;
+  consultation_fee?: number;
+  consultationFee?: number;
+  available_days?: string[];
+  availableDays?: string[];
+  available_from?: string;
+  availableFrom?: string;
+  available_to?: string;
+  availableTo?: string;
+  slotDuration?: number;
+  breakStart?: string;
+  breakEnd?: string;
+  clinicStatus?: string;
+  statusMessage?: string;
+  onLeaveDates?: string[];
+  is_active?: boolean;
+  isActive?: boolean;
+  created_at?: string;
+  createdAt?: string;
 }
 
 export interface Appointment {
@@ -26,8 +40,18 @@ export interface Appointment {
   problemCategory: string;
   doctor?: Doctor;
   appointmentDate: string;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  appointmentTime?: string;
+  status: 'pending' | 'waiting' | 'in-consultation' | 'confirmed' | 'completed' | 'cancelled' | 'skipped';
+  queueStatus?: string;
   tokenNumber: string;
+  vitalsBp?: string;
+  vitalsPulse?: string;
+  vitalsTemp?: string;
+  vitalsWeight?: string;
+  clinicalNotes?: string;
+  prescription?: string;
+  calledAt?: string;
+  completedAt?: string;
   createdAt: string;
 }
 
@@ -37,7 +61,17 @@ export async function fetchDoctors(): Promise<Doctor[]> {
   try {
     const response = await fetch(`${API_BASE_URL}/doctors`);
     if (!response.ok) throw new Error('Failed to fetch doctors');
-    return await response.json();
+    const data = await response.json();
+    return data.map((d: any) => ({
+      ...d,
+      full_name: d.fullName || d.full_name,
+      experience_years: d.experienceYears ?? d.experience_years,
+      consultation_fee: d.consultationFee ?? d.consultation_fee,
+      available_days: d.availableDays || d.available_days,
+      available_from: d.availableFrom || d.available_from,
+      available_to: d.availableTo || d.available_to,
+      is_active: d.isActive ?? d.is_active,
+    }));
   } catch (error) {
     console.error('Error fetching doctors:', error);
     return [];
@@ -48,7 +82,17 @@ export async function fetchDoctorById(id: string): Promise<Doctor | null> {
   try {
     const response = await fetch(`${API_BASE_URL}/doctors/${id}`);
     if (!response.ok) throw new Error('Failed to fetch doctor');
-    return await response.json();
+    const d = await response.json();
+    return {
+      ...d,
+      full_name: d.fullName || d.full_name,
+      experience_years: d.experienceYears ?? d.experience_years,
+      consultation_fee: d.consultationFee ?? d.consultation_fee,
+      available_days: d.availableDays || d.available_days,
+      available_from: d.availableFrom || d.available_from,
+      available_to: d.availableTo || d.available_to,
+      is_active: d.isActive ?? d.is_active,
+    };
   } catch (error) {
     console.error('Error fetching doctor:', error);
     return null;
@@ -59,7 +103,17 @@ export async function fetchDoctorsBySpecialization(specialization: string): Prom
   try {
     const response = await fetch(`${API_BASE_URL}/doctors?specialization=${encodeURIComponent(specialization)}`);
     if (!response.ok) throw new Error('Failed to fetch doctors');
-    return await response.json();
+    const data = await response.json();
+    return data.map((d: any) => ({
+      ...d,
+      full_name: d.fullName || d.full_name,
+      experience_years: d.experienceYears ?? d.experience_years,
+      consultation_fee: d.consultationFee ?? d.consultation_fee,
+      available_days: d.availableDays || d.available_days,
+      available_from: d.availableFrom || d.available_from,
+      available_to: d.availableTo || d.available_to,
+      is_active: d.isActive ?? d.is_active,
+    }));
   } catch (error) {
     console.error('Error fetching doctors by specialization:', error);
     return [];
@@ -77,9 +131,9 @@ export async function createAppointment(appointment: {
   problem_category: string;
   doctor_id: string;
   appointment_date: string;
+  appointment_time?: string;
 }): Promise<Appointment | null> {
   try {
-    // Map snake_case to camelCase for Spring Boot backend
     const payload = {
       patientName: appointment.patient_name,
       patientAge: appointment.patient_age,
@@ -87,8 +141,10 @@ export async function createAppointment(appointment: {
       patientPhone: appointment.patient_phone,
       problemDescription: appointment.problem_description,
       problemCategory: appointment.problem_category,
+      doctorId: appointment.doctor_id,
       doctor: { id: appointment.doctor_id },
       appointmentDate: appointment.appointment_date,
+      appointmentTime: appointment.appointment_time || '10:00 AM',
     };
 
     const response = await fetch(`${API_BASE_URL}/appointments`, {
@@ -99,11 +155,15 @@ export async function createAppointment(appointment: {
       body: JSON.stringify(payload),
     });
 
-    if (!response.ok) throw new Error('Failed to create appointment');
+    if (!response.ok) {
+      const errJson = await response.json().catch(() => ({}));
+      throw new Error(errJson.message || 'Failed to create appointment');
+    }
+
     return await response.json();
   } catch (error) {
     console.error('Error creating appointment:', error);
-    return null;
+    throw error;
   }
 }
 
@@ -115,6 +175,143 @@ export async function fetchAppointments(): Promise<Appointment[]> {
   } catch (error) {
     console.error('Error fetching appointments:', error);
     return [];
+  }
+}
+
+export async function fetchDoctorAppointments(doctorId: string): Promise<Appointment[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/appointments/doctor/${doctorId}`);
+    if (!response.ok) throw new Error('Failed to fetch doctor appointments');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching doctor appointments:', error);
+    return [];
+  }
+}
+
+export async function fetchDoctorTodayAppointments(doctorId: string): Promise<Appointment[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/appointments/doctor/${doctorId}/today`);
+    if (!response.ok) throw new Error('Failed to fetch doctor today appointments');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching doctor today appointments:', error);
+    return [];
+  }
+}
+
+export async function fetchDoctorLiveQueue(doctorId: string): Promise<{
+  currentPatient: Appointment | null;
+  hasCurrentPatient: boolean;
+  waitingQueue: Appointment[];
+  completedToday: Appointment[];
+}> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/appointments/doctor/${doctorId}/queue`);
+    if (!response.ok) throw new Error('Failed to fetch live queue');
+    const data = await response.json();
+    return {
+      currentPatient: data.hasCurrentPatient ? data.currentPatient : null,
+      hasCurrentPatient: data.hasCurrentPatient,
+      waitingQueue: data.waitingQueue || [],
+      completedToday: data.completedToday || [],
+    };
+  } catch (error) {
+    console.error('Error fetching doctor live queue:', error);
+    return {
+      currentPatient: null,
+      hasCurrentPatient: false,
+      waitingQueue: [],
+      completedToday: [],
+    };
+  }
+}
+
+export async function callNextPatientApi(doctorId: string): Promise<{ success: boolean; calledPatient: Appointment | null }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/appointments/doctor/${doctorId}/call-next`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) throw new Error('Failed to call next patient');
+    return await response.json();
+  } catch (error) {
+    console.error('Error calling next patient:', error);
+    return { success: false, calledPatient: null };
+  }
+}
+
+export async function updateAppointmentStatusApi(id: string, payload: {
+  status?: string;
+  clinicalNotes?: string;
+  prescription?: string;
+  appointmentDate?: string;
+  appointmentTime?: string;
+}): Promise<Appointment | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/appointments/${id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error('Failed to update appointment status');
+    return await response.json();
+  } catch (error) {
+    console.error('Error updating appointment status:', error);
+    return null;
+  }
+}
+
+export async function fetchAvailableSlots(doctorId: string, dateStr?: string): Promise<{ time: string; available: boolean }[]> {
+  try {
+    const url = dateStr 
+      ? `${API_BASE_URL}/doctors/${doctorId}/available-slots?date=${encodeURIComponent(dateStr)}`
+      : `${API_BASE_URL}/doctors/${doctorId}/available-slots`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Failed to fetch available slots');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching available slots:', error);
+    return [];
+  }
+}
+
+export async function fetchPatientQueueStatus(token?: string, doctorId?: string): Promise<{
+  currentToken: string;
+  userToken: string;
+  doctorName: string;
+  specialty: string;
+  patientsAhead: number;
+  estimatedWait: number;
+  clinicStatus: string;
+  appointmentStatus: string;
+  isCurrentTurn: boolean;
+} | null> {
+  try {
+    const params = new URLSearchParams();
+    if (token) params.set('token', token);
+    if (doctorId) params.set('doctorId', doctorId);
+    const response = await fetch(`${API_BASE_URL}/queue/status?${params.toString()}`);
+    if (!response.ok) throw new Error('Failed to fetch queue status');
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching patient queue status:', error);
+    return null;
+  }
+}
+
+export async function updateDoctorScheduleApi(doctorId: string, scheduleData: any): Promise<Doctor | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/doctors/${doctorId}/schedule`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(scheduleData),
+    });
+    if (!response.ok) throw new Error('Failed to update schedule');
+    return await response.json();
+  } catch (error) {
+    console.error('Error updating doctor schedule:', error);
+    return null;
   }
 }
 

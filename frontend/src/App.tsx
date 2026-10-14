@@ -3,24 +3,36 @@ import { Home } from './pages/Home';
 import { Login } from './pages/Login';
 import { BookAppointment } from './pages/BookAppointment';
 import { AppointmentForm } from './pages/AppointmentForm';
+import { SpecialitiesPage } from './pages/SpecialitiesPage';
 import { AppLayout } from './components/layout/AppLayout';
 import { Dashboard } from './pages/Dashboard';
 import { QueueTracking } from './pages/QueueTracking';
 
-const Placeholder = ({ title }: { title: string }) => (
-  <div className="flex items-center justify-center h-64 border-2 border-dashed border-border rounded-xl">
-    <div className="text-center">
-      <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
-      <p className="text-muted-foreground mt-2">This page is under construction.</p>
-    </div>
-  </div>
-);
+// Doctor Portal Imports
+import { DoctorLayout } from './components/layout/DoctorLayout';
+import { DoctorLogin } from './pages/doctor/DoctorLogin';
+import { DoctorDashboard } from './pages/doctor/DoctorDashboard';
+import { DoctorQueue } from './pages/doctor/DoctorQueue';
+import { DoctorAppointments } from './pages/doctor/DoctorAppointments';
+import { DoctorSchedule } from './pages/doctor/DoctorSchedule';
+import { DoctorPatients } from './pages/doctor/DoctorPatients';
+
+// Patient Sub-Pages
+import { PatientDoctors } from './pages/patient/PatientDoctors';
+import { PatientAppointments } from './pages/patient/PatientAppointments';
+import { PatientRecords } from './pages/patient/PatientRecords';
+import { PatientHistory } from './pages/patient/PatientHistory';
+import { PatientNotifications } from './pages/patient/PatientNotifications';
+import { PatientProfile } from './pages/patient/PatientProfile';
+import { PatientSettings } from './pages/patient/PatientSettings';
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/specialities" element={<SpecialitiesPage />} />
+        <Route path="/specialties" element={<SpecialitiesPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/book-appointment" element={<BookAppointment />} />
         <Route path="/book-appointment/:doctorId" element={<AppointmentForm />} />
@@ -29,14 +41,25 @@ function App() {
         <Route path="/patient" element={<AppLayout />}>
           <Route index element={<Navigate to="dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="doctors" element={<Placeholder title="Find Doctors" />} />
-          <Route path="appointments" element={<Placeholder title="Appointments" />} />
+          <Route path="doctors" element={<PatientDoctors />} />
+          <Route path="appointments" element={<PatientAppointments />} />
           <Route path="queue" element={<QueueTracking />} />
-          <Route path="records" element={<Placeholder title="Medical Records" />} />
-          <Route path="history" element={<Placeholder title="Health History" />} />
-          <Route path="notifications" element={<Placeholder title="Notifications" />} />
-          <Route path="profile" element={<Placeholder title="Patient Profile" />} />
-          <Route path="settings" element={<Placeholder title="Settings" />} />
+          <Route path="records" element={<PatientRecords />} />
+          <Route path="history" element={<PatientHistory />} />
+          <Route path="notifications" element={<PatientNotifications />} />
+          <Route path="profile" element={<PatientProfile />} />
+          <Route path="settings" element={<PatientSettings />} />
+        </Route>
+
+        {/* Doctor Portal Routes */}
+        <Route path="/doctor/login" element={<DoctorLogin />} />
+        <Route path="/doctor" element={<DoctorLayout />}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<DoctorDashboard />} />
+          <Route path="queue" element={<DoctorQueue />} />
+          <Route path="appointments" element={<DoctorAppointments />} />
+          <Route path="schedule" element={<DoctorSchedule />} />
+          <Route path="patients" element={<DoctorPatients />} />
         </Route>
 
         {/* Catch-all to redirect unknown routes */}

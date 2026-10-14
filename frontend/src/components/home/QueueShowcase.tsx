@@ -1,8 +1,7 @@
-import { motion } from 'framer-motion';
-import { cn } from '../../lib/utils';
+import { motion, type Variants } from 'framer-motion';
 
 export function QueueShowcase() {
-  const fadeUpVariant = {
+  const fadeUpVariant: Variants = {
     hidden: { opacity: 0, y: 15 },
     visible: (custom: number) => ({
       opacity: 1,
@@ -10,7 +9,7 @@ export function QueueShowcase() {
       transition: {
         delay: custom * 0.1,
         duration: 0.6,
-        ease: [0.16, 1, 0.3, 1]
+        ease: 'easeOut'
       }
     })
   };

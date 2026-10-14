@@ -103,11 +103,11 @@ export function Navbar() {
               {isDark ? <Sun className="w-[18px] h-[18px]" strokeWidth={2} /> : <Moon className="w-[18px] h-[18px]" strokeWidth={2} />}
             </button>
 
-            {/* Highlighted Patient Login */}
+            {/* Patient Login */}
             <Link
               to="/login"
               className={cn(
-                "relative inline-flex items-center justify-center px-5 py-2.5 border border-border rounded-none",
+                "relative inline-flex items-center justify-center px-4 py-2 border border-border rounded-none",
                 "text-[12px] xl:text-[13px] uppercase tracking-[0.05em] font-medium text-foreground",
                 "transition-all duration-300 ease-out overflow-hidden group whitespace-nowrap",
                 "hover:border-foreground"
@@ -115,8 +115,20 @@ export function Navbar() {
             >
               <span className="relative z-10">Patient Login</span>
             </Link>
+
+            {/* Dedicated Doctor Portal Link */}
+            <Link
+              to="/doctor/login"
+              className={cn(
+                "relative inline-flex items-center justify-center px-4 py-2 border border-border/80 rounded-none",
+                "text-[12px] xl:text-[13px] uppercase tracking-[0.05em] font-medium text-brand",
+                "bg-brand/5 hover:bg-brand/10 hover:border-brand transition-all duration-300 ease-out whitespace-nowrap"
+              )}
+            >
+              <span className="relative z-10 font-semibold">For Doctors</span>
+            </Link>
             
-            {/* Solid Book Appointment CTA */}
+            {/* Solid Book Appointment Primary CTA */}
             <Link
               to="/book-appointment"
               className={cn(
@@ -186,14 +198,21 @@ export function Navbar() {
             <Link
               to="/login"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="inline-flex items-center justify-center w-full py-4 border border-border rounded-none text-foreground text-sm uppercase tracking-widest font-medium transition-colors hover:border-foreground"
+              className="inline-flex items-center justify-center w-full py-3.5 border border-border rounded-none text-foreground text-sm uppercase tracking-widest font-medium transition-colors hover:border-foreground"
             >
               Patient Login
             </Link>
             <Link
+              to="/doctor/login"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="inline-flex items-center justify-center w-full py-3.5 border border-brand/40 bg-brand/5 text-brand text-sm uppercase tracking-widest font-semibold transition-colors hover:bg-brand/10"
+            >
+              For Doctors (Doctor Portal)
+            </Link>
+            <Link
               to="/book-appointment"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="inline-flex items-center justify-center gap-2 w-full py-4 rounded-none bg-foreground text-background text-sm uppercase tracking-widest font-medium shadow-lg transition-transform active:scale-[0.98]"
+              className="inline-flex items-center justify-center gap-2 w-full py-3.5 rounded-none bg-foreground text-background text-sm uppercase tracking-widest font-medium shadow-lg transition-transform active:scale-[0.98]"
             >
               <Calendar className="w-5 h-5" />
               Book Appointment

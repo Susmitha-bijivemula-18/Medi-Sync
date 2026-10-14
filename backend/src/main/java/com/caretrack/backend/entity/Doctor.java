@@ -1,10 +1,12 @@
 package com.caretrack.backend.entity;
 
+import com.caretrack.backend.config.StringListConverter;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
@@ -32,14 +34,34 @@ public class Doctor {
     @Column(name = "consultation_fee")
     private BigDecimal consultationFee = new BigDecimal("500.00");
 
-    @Column(name = "available_days", columnDefinition = "text[]")
-    private List<String> availableDays;
+    @Convert(converter = StringListConverter.class)
+    @Column(name = "available_days", length = 500)
+    private List<String> availableDays = new ArrayList<>(List.of("Monday", "Tuesday", "Wednesday", "Thursday", "Friday"));
 
     @Column(name = "available_from")
     private LocalTime availableFrom = LocalTime.of(9, 0);
 
     @Column(name = "available_to")
     private LocalTime availableTo = LocalTime.of(17, 0);
+
+    @Column(name = "slot_duration")
+    private Integer slotDuration = 20;
+
+    @Column(name = "break_start")
+    private LocalTime breakStart = LocalTime.of(13, 0);
+
+    @Column(name = "break_end")
+    private LocalTime breakEnd = LocalTime.of(14, 0);
+
+    @Column(name = "clinic_status")
+    private String clinicStatus = "active"; // active, on_break, delayed, offline
+
+    @Column(name = "status_message", length = 500)
+    private String statusMessage = "In Clinic · Calling patients on time";
+
+    @Convert(converter = StringListConverter.class)
+    @Column(name = "on_leave_dates", length = 1000)
+    private List<String> onLeaveDates = new ArrayList<>();
 
     @Column(name = "is_active")
     private Boolean isActive = true;
