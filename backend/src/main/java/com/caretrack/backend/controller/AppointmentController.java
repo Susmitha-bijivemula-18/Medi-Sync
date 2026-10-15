@@ -117,6 +117,8 @@ public class AppointmentController {
 
         appointment.setPatientEmail(payload.get("patientEmail") != null ? payload.get("patientEmail").toString() : "");
         appointment.setPatientPhone(payload.get("patientPhone") != null ? payload.get("patientPhone").toString() : "");
+        appointment.setBloodGroup(payload.get("bloodGroup") != null ? payload.get("bloodGroup").toString() : (payload.get("blood_group") != null ? payload.get("blood_group").toString() : ""));
+        appointment.setLocation(payload.get("location") != null ? payload.get("location").toString() : "");
         appointment.setProblemDescription(payload.get("problemDescription") != null ? payload.get("problemDescription").toString() : "");
         appointment.setProblemCategory(payload.get("problemCategory") != null ? payload.get("problemCategory").toString() : doctor.getSpecialization());
 

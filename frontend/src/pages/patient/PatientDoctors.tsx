@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Stethoscope, Star, Calendar, Clock, ArrowRight, ShieldCheck, Award } from 'lucide-react';
 import { getMergedDoctors, type ExtendedDoctor } from '../../lib/doctors';
+import { DoctorAvatar } from '../../components/common/DoctorAvatar';
 
 const specialties = [
   'All',
@@ -124,13 +125,11 @@ export function PatientDoctors() {
               <div className="space-y-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3.5">
-                    <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-brand/10 to-brand/20 border border-brand/20 flex items-center justify-center text-brand font-bold text-lg overflow-hidden shrink-0">
-                      {doc.avatar ? (
-                        <img src={doc.avatar} alt={doc.full_name} className="w-full h-full object-cover" />
-                      ) : (
-                        doc.full_name?.replace('Dr. ', '').charAt(0) || 'D'
-                      )}
-                    </div>
+                    <DoctorAvatar
+                      src={doc.avatar}
+                      name={doc.full_name}
+                      className="w-13 h-13 rounded-2xl"
+                    />
                     <div>
                       <div className="flex items-center gap-1.5">
                         <h3 className="font-semibold text-base text-foreground group-hover:text-brand transition-colors">

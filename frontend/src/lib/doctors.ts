@@ -25,7 +25,7 @@ export const mockDoctors: ExtendedDoctor[] = [
     availableStatus: 'Available today',
     nextSlot: 'Today · 2:30 PM',
     rating: '4.9',
-    avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=300&h=300&fit=crop&q=80',
+    avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&h=400&fit=crop&crop=faces&q=80',
     bio: 'Senior Consultant Cardiologist specializing in preventive cardiology, coronary artery disease management, and heart failure care.',
     languages: ['English', 'Telugu', 'Hindi'],
   },
@@ -44,7 +44,7 @@ export const mockDoctors: ExtendedDoctor[] = [
     availableStatus: 'Available tomorrow',
     nextSlot: 'Tomorrow · 9:15 AM',
     rating: '4.8',
-    avatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=300&h=300&fit=crop&q=80',
+    avatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=400&h=400&fit=crop&crop=faces&q=80',
     bio: 'Specialist in medical and aesthetic dermatology, treating chronic skin allergies, acne, hair loss, and eczema.',
     languages: ['English', 'Hindi'],
   },
@@ -63,7 +63,7 @@ export const mockDoctors: ExtendedDoctor[] = [
     availableStatus: 'Available today',
     nextSlot: 'Today · 11:45 AM',
     rating: '4.9',
-    avatar: 'https://images.unsplash.com/photo-1594824436951-7f12bc80fa52?w=300&h=300&fit=crop&q=80',
+    avatar: 'https://images.unsplash.com/photo-1594824813626-d62fcf656b62?w=400&h=400&fit=crop&crop=faces&q=80',
     bio: 'Lead Physician focused on comprehensive adult healthcare, lifestyle disease management, diabetes care, and preventive checkups.',
     languages: ['English', 'Telugu', 'Malayalam'],
   },
@@ -82,7 +82,7 @@ export const mockDoctors: ExtendedDoctor[] = [
     availableStatus: 'Available Wednesday',
     nextSlot: 'Wed · 1:00 PM',
     rating: '4.7',
-    avatar: 'https://images.unsplash.com/photo-1537368910025-7028a411333c?w=300&h=300&fit=crop&q=80',
+    avatar: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=400&h=400&fit=crop&crop=faces&q=80',
     bio: 'Orthopedic surgeon with expertise in joint preservation, knee replacement, trauma surgery, and sports injury rehabilitation.',
     languages: ['English', 'Telugu'],
   },
@@ -101,7 +101,7 @@ export const mockDoctors: ExtendedDoctor[] = [
     availableStatus: 'Available today',
     nextSlot: 'Today · 4:00 PM',
     rating: '4.8',
-    avatar: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=300&h=300&fit=crop&q=80',
+    avatar: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop&crop=faces&q=80',
     bio: 'Consultant Pediatrician dedicated to infant development, childhood immunization, pediatric respiratory illnesses, and growth monitoring.',
     languages: ['English', 'Hindi', 'Punjabi'],
   },
@@ -120,7 +120,7 @@ export const mockDoctors: ExtendedDoctor[] = [
     availableStatus: 'Available Thursday',
     nextSlot: 'Thu · 10:30 AM',
     rating: '4.9',
-    avatar: 'https://images.unsplash.com/photo-1527613426441-4da17471b66d?w=300&h=300&fit=crop&q=80',
+    avatar: 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=400&h=400&fit=crop&crop=faces&q=80',
     bio: 'Senior Neurologist managing epilepsy, Parkinson’s disease, stroke prevention, chronic headache disorders, and peripheral neuropathy.',
     languages: ['English', 'Hindi'],
   },
@@ -139,7 +139,7 @@ export const mockDoctors: ExtendedDoctor[] = [
     availableStatus: 'Available today',
     nextSlot: 'Today · 1:15 PM',
     rating: '4.8',
-    avatar: 'https://images.unsplash.com/photo-1612349316228-5942a9b489c2?w=300&h=300&fit=crop&q=80',
+    avatar: 'https://images.unsplash.com/photo-1651008376811-b90baee60c1f?w=400&h=400&fit=crop&crop=faces&q=80',
     bio: 'Obstetrician and Gynecologist providing personalized prenatal care, high-risk pregnancy management, PCOS counseling, and wellness screenings.',
     languages: ['English', 'Telugu', 'Tamil'],
   },
@@ -158,29 +158,50 @@ export const mockDoctors: ExtendedDoctor[] = [
     availableStatus: 'Available tomorrow',
     nextSlot: 'Tomorrow · 3:00 PM',
     rating: '4.7',
-    avatar: 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=300&h=300&fit=crop&q=80',
+    avatar: 'https://images.unsplash.com/photo-1622902046580-2b47f47f5471?w=400&h=400&fit=crop&crop=faces&q=80',
     bio: 'ENT surgeon with specialization in endoscopic sinus surgery, hearing loss evaluation, allergy treatment, and voice disorders.',
     languages: ['English', 'Telugu'],
   },
 ];
 
+export function getDoctorFallbackAvatar(name?: string): string {
+  const cleanName = encodeURIComponent(name || 'Doctor');
+  return `https://ui-avatars.com/api/?name=${cleanName}&background=0284c7&color=ffffff&bold=true&size=256`;
+}
+
+const specialtyPhotos: Record<string, string> = {
+  Cardiology: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&h=400&fit=crop&crop=faces&q=80',
+  Dermatology: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=400&h=400&fit=crop&crop=faces&q=80',
+  'General Medicine': 'https://images.unsplash.com/photo-1594824813626-d62fcf656b62?w=400&h=400&fit=crop&crop=faces&q=80',
+  Orthopedics: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=400&h=400&fit=crop&crop=faces&q=80',
+  Pediatrics: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop&crop=faces&q=80',
+  Neurology: 'https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=400&h=400&fit=crop&crop=faces&q=80',
+  Gynecology: 'https://images.unsplash.com/photo-1651008376811-b90baee60c1f?w=400&h=400&fit=crop&crop=faces&q=80',
+  ENT: 'https://images.unsplash.com/photo-1622902046580-2b47f47f5471?w=400&h=400&fit=crop&crop=faces&q=80',
+};
+
 /**
- * Loads doctors from backend and merges with rich mock details
+ * Loads doctors from backend and merges with rich details and portrait photos
  */
 export async function getMergedDoctors(): Promise<ExtendedDoctor[]> {
   try {
     const data = await fetchDoctors();
     if (data && data.length > 0) {
       return data.map((dbDoc) => {
-        const match = mockDoctors.find((m) => m.full_name === dbDoc.full_name || m.id === dbDoc.id);
+        const docName = dbDoc.full_name || dbDoc.fullName || '';
+        const match = mockDoctors.find((m) => (m.full_name || '').toLowerCase() === docName.toLowerCase() || m.id === dbDoc.id);
+        const specPhoto = specialtyPhotos[dbDoc.specialization] || 
+          mockDoctors.find((m) => m.specialization.toLowerCase() === (dbDoc.specialization || '').toLowerCase())?.avatar || 
+          'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&h=400&fit=crop&crop=faces&q=80';
+
         return match
-          ? { ...dbDoc, ...match }
+          ? { ...dbDoc, ...match, id: dbDoc.id }
           : {
               ...dbDoc,
               availableStatus: 'Available today',
               nextSlot: 'Today · 10:00 AM',
               rating: '4.8',
-              avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=300&h=300&fit=crop&q=80',
+              avatar: specPhoto,
             };
       });
     }

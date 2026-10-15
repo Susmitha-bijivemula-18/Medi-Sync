@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Search, Filter, Stethoscope, Star, User, ArrowRight, Calendar, Clock } from 'lucide-react';
+import { ArrowLeft, Search, Filter, Stethoscope, Star, ArrowRight, Calendar, Clock } from 'lucide-react';
 import { mockDoctors, getMergedDoctors, type ExtendedDoctor } from '../lib/doctors';
+import { DoctorAvatar } from '../components/common/DoctorAvatar';
 
 const specializations = [
   'All', 
@@ -171,20 +172,12 @@ export function BookAppointment() {
                 >
                     {/* Header: Photo + Name + Spec */}
                     <div className="flex items-start gap-5 mb-5">
-                      <div className="w-[72px] h-[72px] rounded-full overflow-hidden border-2 border-border/50 bg-secondary flex-shrink-0 flex items-center justify-center">
-                        {doctor.avatar ? (
-                          <img 
-                            src={doctor.avatar} 
-                            alt={doctor.full_name} 
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                            onError={(e) => {
-                               (e.target as HTMLImageElement).style.display = 'none';
-                               (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-                            }}
-                          />
-                        ) : null}
-                        <User className={`w-8 h-8 text-muted-foreground/50 ${doctor.avatar ? 'hidden' : ''}`} />
-                      </div>
+                      <DoctorAvatar
+                        src={doctor.avatar}
+                        name={doctor.full_name}
+                        className="w-[72px] h-[72px] border-2 border-border/50"
+                        imgClassName="transition-transform duration-500 group-hover:scale-110"
+                      />
                       
                       <div className="flex-1 min-w-0 pt-1">
                         <h3 className="text-xl font-heading font-semibold tracking-tight text-foreground truncate group-hover:text-brand transition-colors">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -7,38 +7,122 @@ import {
   Mail, 
   ArrowLeft, 
   ShieldCheck, 
-  UserCheck, 
+  User, 
+  Award,
   ArrowRight,
-  AlertCircle 
+  AlertCircle,
+  Sparkles,
+  Search
 } from 'lucide-react';
-import { mockDoctors } from '../../lib/doctors';
+import { mockDoctors, getMergedDoctors, type ExtendedDoctor } from '../../lib/doctors';
 import { doctorSignIn } from '../../lib/doctorAuth';
+import { DoctorAvatar } from '../../components/common/DoctorAvatar';
+
+const specialitiesList = [
+  'Cardiology',
+  'Dermatology',
+  'General Medicine',
+  'Orthopedics',
+  'Pediatrics',
+  'Neurology',
+  'Gynecology',
+  'ENT',
+  'Ophthalmology',
+  'Psychiatry',
+  'Oncology'
+];
 
 export function DoctorLogin() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  
+  // All doctors available in the system
+  const [doctorsList, setDoctorsList] = useState<ExtendedDoctor[]>(mockDoctors);
+  const [doctorSearch, setDoctorSearch] = useState('');
+
+  // Fetch full list of doctors including backend database if reachable
+  useEffect(() => {
+    getMergedDoctors().then((docs) => {
+      if (docs && docs.length > 0) {
+        setDoctorsList(docs);
+      }
+    });
+  }, []);
+
+  // Filtered doctors for quick selection
+  const filteredDoctors = useMemo(() => {
+    const q = doctorSearch.toLowerCase().trim();
+    if (!q) return doctorsList;
+    return doctorsList.filter((doc) =>
+      (doc.full_name || '').toLowerCase().includes(q) ||
+      (doc.specialization || '').toLowerCase().includes(q)
+    );
+  }, [doctorsList, doctorSearch]);
+
+  // Doctor authentication credentials (all required)
+  const [name, setName] = useState('Dr. Ananya Rao');
+  const [specialization, setSpecialization] = useState('Cardiology');
+  const [email, setEmail] = useState('dr.ananya@caretrack.com');
   const [password, setPassword] = useState('');
-  const [selectedDoctorId, setSelectedDoctorId] = useState(mockDoctors[0].id);
-  const [isQuickSelect, setIsQuickSelect] = useState(true);
+  
+  const [selectedPresetId, setSelectedPresetId] = useState<string>('1');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Handle selecting an existing specialist profile to pre-populate
+  const handleSelectPreset = (doc: ExtendedDoctor) => {
+    setSelectedPresetId(doc.id);
+    setName(doc.full_name || '');
+    setSpecialization(doc.specialization || '');
+    const slug = (doc.full_name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    setEmail(`${slug}@caretrack.com`);
+    setError('');
+  };
+
+  const handleNameChange = (val: string) => {
+    setName(val);
+    const clean = val.replace(/^Dr\.?\s*/i, '').trim().toLowerCase();
+    const matched = doctorsList.find(
+      (d) => (d.full_name || '').replace(/^Dr\.?\s*/i, '').trim().toLowerCase() === clean
+    );
+    if (matched) {
+      setSelectedPresetId(matched.id);
+      if (matched.specialization) setSpecialization(matched.specialization);
+      const slug = (matched.full_name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      setEmail(`${slug}@caretrack.com`);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (!name.trim()) {
+      setError('Doctor name is required');
+      return;
+    }
+    if (!specialization.trim()) {
+      setError('Speciality is required');
+      return;
+    }
+    if (!email.trim() || !email.includes('@')) {
+      setError('Valid hospital email is required');
+      return;
+    }
+    if (!password.trim()) {
+      setError('Doctor portal password is required');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      if (isQuickSelect) {
-        await doctorSignIn({ doctorId: selectedDoctorId });
-      } else {
-        if (!email.trim()) {
-          setError('Please enter your doctor email or medical ID');
-          setLoading(false);
-          return;
-        }
-        await doctorSignIn({ email, password });
-      }
+      await doctorSignIn({
+        name: name.trim(),
+        specialization: specialization.trim(),
+        email: email.trim(),
+        password: password.trim(),
+        doctorId: selectedPresetId,
+      });
       navigate('/doctor/dashboard');
     } catch {
       setError('Unable to authenticate physician credentials');
@@ -58,153 +142,193 @@ export function DoctorLogin() {
         </Link>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <span>Secure Clinical Portal</span>
+          <span>Secure Clinical Portal · Verified Physician Access</span>
         </div>
       </header>
 
       {/* Main Form Center */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-10">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md bg-card border border-border rounded-xl shadow-card p-6 sm:p-8"
+          className="w-full max-w-xl bg-card border border-border rounded-2xl shadow-card p-6 sm:p-8 space-y-6"
         >
           {/* Header */}
-          <div className="text-center mb-6">
+          <div className="text-center">
             <div className="w-12 h-12 rounded-xl bg-brand/10 text-brand flex items-center justify-center mx-auto mb-3">
               <Stethoscope className="w-6 h-6" />
             </div>
             <h1 className="text-2xl font-heading font-bold tracking-tight text-foreground">
-              Doctor Portal Login
+              Doctor Portal Access
             </h1>
             <p className="text-xs text-muted-foreground mt-1">
-              Access clinical consultations, live patient queue, and schedule management
+              Enter physician name, speciality, hospital email, and password to unlock clinical workspace
             </p>
           </div>
 
-          {/* Quick Select / Direct Login Tabs */}
-          <div className="grid grid-cols-2 gap-1 bg-secondary/80 p-1 rounded-lg text-xs font-semibold mb-6">
-            <button
-              type="button"
-              onClick={() => setIsQuickSelect(true)}
-              className={`py-2 rounded-md transition-colors cursor-pointer ${
-                isQuickSelect 
-                  ? 'bg-foreground text-background shadow-xs' 
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Verified Specialists
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsQuickSelect(false)}
-              className={`py-2 rounded-md transition-colors cursor-pointer ${
-                !isQuickSelect 
-                  ? 'bg-foreground text-background shadow-xs' 
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Staff Credentials
-            </button>
+          {/* Quick Select Physician Profile */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between text-xs font-semibold text-foreground">
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-brand" />
+                Select Physician Profile ({doctorsList.length} Doctors):
+              </span>
+              <span className="text-[11px] text-muted-foreground font-normal">Autofills name & speciality</span>
+            </div>
+
+            {/* Quick search input */}
+            {doctorsList.length > 4 && (
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={doctorSearch}
+                  onChange={(e) => setDoctorSearch(e.target.value)}
+                  placeholder="Search doctor by name or specialty..."
+                  className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-brand"
+                />
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-60 overflow-y-auto pr-1">
+              {filteredDoctors.map((doc) => {
+                const isSelected = selectedPresetId === doc.id;
+                return (
+                  <button
+                    key={doc.id}
+                    type="button"
+                    onClick={() => handleSelectPreset(doc)}
+                    className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex flex-col items-center text-center gap-1.5 ${
+                      isSelected
+                        ? 'border-brand bg-brand/5 ring-1.5 ring-brand shadow-xs'
+                        : 'border-border/80 hover:border-brand/40 hover:bg-secondary/40'
+                    }`}
+                  >
+                    <DoctorAvatar
+                      src={doc.avatar}
+                      name={doc.full_name}
+                      className="w-9 h-9 shadow-2xs"
+                    />
+                    <div className="w-full min-w-0">
+                      <h4 className="text-[11px] font-bold text-foreground truncate" title={doc.full_name}>
+                        {doc.full_name}
+                      </h4>
+                      <p className="text-[10px] text-brand font-medium truncate">
+                        {doc.specialization}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            {filteredDoctors.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-2">
+                No matching doctors found for "{doctorSearch}". You can enter custom credentials directly below.
+              </p>
+            )}
           </div>
 
           {error && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium mb-5">
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
+          {/* Physician Credential Form (All 4 required) */}
           <form onSubmit={handleLogin} className="space-y-4">
-            {isQuickSelect ? (
-              /* Verified Specialist Quick Select */
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-foreground">
-                  Select Physician Account:
-                </label>
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                  {mockDoctors.map((doc) => {
-                    const isSelected = selectedDoctorId === doc.id;
-                    return (
-                      <div
-                        key={doc.id}
-                        onClick={() => setSelectedDoctorId(doc.id)}
-                        className={`p-3 rounded-lg border transition-all cursor-pointer flex items-center justify-between ${
-                          isSelected
-                            ? 'border-brand bg-brand/5 ring-1 ring-brand'
-                            : 'border-border/80 hover:border-border hover:bg-secondary/40'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <img
-                            src={doc.avatar}
-                            alt={doc.full_name}
-                            className="w-9 h-9 rounded-full object-cover shrink-0 border border-border"
-                          />
-                          <div className="min-w-0">
-                            <h3 className="text-xs font-bold text-foreground truncate">{doc.full_name}</h3>
-                            <p className="text-[11px] text-brand font-medium truncate">
-                              {doc.specialization} · {doc.experience_years} yrs
-                            </p>
-                          </div>
-                        </div>
-                        {isSelected && <UserCheck className="w-4 h-4 text-brand shrink-0 ml-2" />}
-                      </div>
-                    );
-                  })}
-                </div>
+            
+            {/* 1. Doctor Name */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-foreground">
+                Doctor Name <span className="text-destructive">*</span>
+              </label>
+              <div className="relative">
+                <User className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  placeholder="e.g. Dr. Ananya Rao"
+                  required
+                  className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-border bg-background text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-brand"
+                />
               </div>
-            ) : (
-              /* Email & Password Form */
-              <>
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-foreground">
-                    Hospital Email / Medical ID
-                  </label>
-                  <div className="relative">
-                    <Mail className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="dr.ananya@caretrack.com"
-                      required
-                      className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-brand"
-                    />
-                  </div>
-                </div>
+            </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-foreground">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      required
-                      className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-brand"
-                    />
-                  </div>
-                </div>
-              </>
-            )}
+            {/* 2. Doctor Speciality */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-foreground">
+                Medical Speciality <span className="text-destructive">*</span>
+              </label>
+              <div className="relative">
+                <Award className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  list="specialities-datalist"
+                  value={specialization}
+                  onChange={(e) => setSpecialization(e.target.value)}
+                  placeholder="e.g. Cardiology, Dermatology, Orthopedics"
+                  required
+                  className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-border bg-background text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-brand"
+                />
+                <datalist id="specialities-datalist">
+                  {specialitiesList.map((spec) => (
+                    <option key={spec} value={spec} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
+
+            {/* 3. Hospital Email */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-foreground">
+                Hospital Email / Medical ID <span className="text-destructive">*</span>
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="dr.ananya@caretrack.com"
+                  required
+                  className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-border bg-background text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-brand"
+                />
+              </div>
+            </div>
+
+            {/* 4. Password */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-foreground">
+                Portal Password <span className="text-destructive">*</span>
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your physician password"
+                  required
+                  className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-border bg-background text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-brand"
+                />
+              </div>
+              <p className="text-[10px] text-muted-foreground">Demo doctor passkey: any secure password (e.g. doctor123)</p>
+            </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 px-4 rounded-lg bg-foreground text-background hover:bg-brand hover:text-brand-foreground text-xs font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-xs mt-2"
+              className="w-full py-3 px-4 rounded-xl bg-foreground text-background hover:bg-brand hover:text-brand-foreground text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm mt-3"
             >
-              <span>{loading ? 'Authenticating...' : 'Enter Doctor Workspace'}</span>
+              <span>{loading ? 'Verifying Credentials...' : 'Authenticate & Open Doctor Portal'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
 
           {/* Patient login link */}
-          <div className="mt-6 pt-5 border-t border-border text-center text-xs text-muted-foreground">
+          <div className="pt-4 border-t border-border text-center text-xs text-muted-foreground">
             Looking for patient records or booking?{' '}
             <Link to="/login" className="font-semibold text-brand hover:underline">
               Patient Login →

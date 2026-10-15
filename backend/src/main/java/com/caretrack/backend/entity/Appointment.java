@@ -1,14 +1,12 @@
 package com.caretrack.backend.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
-@Data
 @Entity
 @Table(name = "appointments")
 public class Appointment {
@@ -20,16 +18,22 @@ public class Appointment {
     private String patientId = "";
 
     @Column(name = "patient_name", nullable = false)
-    private String patientName;
+    private String patientName = "";
 
     @Column(name = "patient_age", nullable = false)
-    private Integer patientAge;
+    private Integer patientAge = 0;
 
     @Column(name = "patient_email", nullable = false)
     private String patientEmail = "";
 
     @Column(name = "patient_phone", nullable = false)
     private String patientPhone = "";
+
+    @Column(name = "blood_group")
+    private String bloodGroup = "";
+
+    @Column(name = "location")
+    private String location = "";
 
     @Column(name = "problem_description", length = 1000)
     private String problemDescription = "";
@@ -84,4 +88,81 @@ public class Appointment {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    public Appointment() {}
+
+    public UUID getId() { return id; }
+    public void setId(UUID id) { this.id = id; }
+
+    public String getPatientId() { return patientId; }
+    public void setPatientId(String patientId) { this.patientId = patientId; }
+
+    public String getPatientName() { return patientName; }
+    public void setPatientName(String patientName) { this.patientName = patientName; }
+
+    public Integer getPatientAge() { return patientAge; }
+    public void setPatientAge(Integer patientAge) { this.patientAge = patientAge; }
+
+    public String getPatientEmail() { return patientEmail; }
+    public void setPatientEmail(String patientEmail) { this.patientEmail = patientEmail; }
+
+    public String getPatientPhone() { return patientPhone; }
+    public void setPatientPhone(String patientPhone) { this.patientPhone = patientPhone; }
+
+    public String getBloodGroup() { return bloodGroup; }
+    public void setBloodGroup(String bloodGroup) { this.bloodGroup = bloodGroup; }
+
+    public String getLocation() { return location; }
+    public void setLocation(String location) { this.location = location; }
+
+    public String getProblemDescription() { return problemDescription; }
+    public void setProblemDescription(String problemDescription) { this.problemDescription = problemDescription; }
+
+    public String getProblemCategory() { return problemCategory; }
+    public void setProblemCategory(String problemCategory) { this.problemCategory = problemCategory; }
+
+    public Doctor getDoctor() { return doctor; }
+    public void setDoctor(Doctor doctor) { this.doctor = doctor; }
+
+    public LocalDate getAppointmentDate() { return appointmentDate; }
+    public void setAppointmentDate(LocalDate appointmentDate) { this.appointmentDate = appointmentDate; }
+
+    public String getAppointmentTime() { return appointmentTime; }
+    public void setAppointmentTime(String appointmentTime) { this.appointmentTime = appointmentTime; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    public String getQueueStatus() { return queueStatus; }
+    public void setQueueStatus(String queueStatus) { this.queueStatus = queueStatus; }
+
+    public String getTokenNumber() { return tokenNumber; }
+    public void setTokenNumber(String tokenNumber) { this.tokenNumber = tokenNumber; }
+
+    public String getVitalsBp() { return vitalsBp; }
+    public void setVitalsBp(String vitalsBp) { this.vitalsBp = vitalsBp; }
+
+    public String getVitalsPulse() { return vitalsPulse; }
+    public void setVitalsPulse(String vitalsPulse) { this.vitalsPulse = vitalsPulse; }
+
+    public String getVitalsTemp() { return vitalsTemp; }
+    public void setVitalsTemp(String vitalsTemp) { this.vitalsTemp = vitalsTemp; }
+
+    public String getVitalsWeight() { return vitalsWeight; }
+    public void setVitalsWeight(String vitalsWeight) { this.vitalsWeight = vitalsWeight; }
+
+    public String getClinicalNotes() { return clinicalNotes; }
+    public void setClinicalNotes(String clinicalNotes) { this.clinicalNotes = clinicalNotes; }
+
+    public String getPrescription() { return prescription; }
+    public void setPrescription(String prescription) { this.prescription = prescription; }
+
+    public String getCalledAt() { return calledAt; }
+    public void setCalledAt(String calledAt) { this.calledAt = calledAt; }
+
+    public String getCompletedAt() { return completedAt; }
+    public void setCompletedAt(String completedAt) { this.completedAt = completedAt; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

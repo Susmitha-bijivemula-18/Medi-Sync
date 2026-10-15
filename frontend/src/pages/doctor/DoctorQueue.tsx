@@ -22,8 +22,9 @@ export function DoctorQueue() {
   const session = getCurrentDoctor();
   const doctor = session?.doctor;
   const doctorId = doctor?.id || '1';
+  const doctorName = doctor?.full_name || '';
 
-  const [queueData, setQueueData] = useState(() => getLiveQueueForDoctor(doctorId));
+  const [queueData, setQueueData] = useState(() => getLiveQueueForDoctor(doctorId, doctorName));
   const [schedule, setSchedule] = useState(() => getDoctorScheduleSettings(doctorId));
 
   // Consultation in-progress inputs
@@ -43,12 +44,12 @@ export function DoctorQueue() {
   useEffect(() => {
     initQueueSync(doctorId);
     const refresh = () => {
-      setQueueData(getLiveQueueForDoctor(doctorId));
+      setQueueData(getLiveQueueForDoctor(doctorId, doctorName));
       setSchedule(getDoctorScheduleSettings(doctorId));
     };
     window.addEventListener('caretrack:queue-update', refresh);
     return () => window.removeEventListener('caretrack:queue-update', refresh);
-  }, [doctorId]);
+  }, [doctorId, doctorName]);
 
   if (!doctor) return null;
 
@@ -61,7 +62,7 @@ export function DoctorQueue() {
   };
 
   const handleCallNext = async () => {
-    const result = await callNextPatient(doctorId);
+    const result = await callNextPatient(doctorId, doctorName);
     if (result.success && result.calledPatient) {
       flashNotice(`Token ${result.calledPatient.tokenNumber} (${result.calledPatient.patientName}) called into room.`);
       setClinicalNotes('');
@@ -165,8 +166,15 @@ export function DoctorQueue() {
                     <h3 className="text-base font-bold text-foreground">
                       {currentPatient.patientName}
                     </h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {currentPatient.patientAge} years old · Phone: {currentPatient.patientPhone}
+                    <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-2">
+                      <span>{currentPatient.patientAge} years old</span>
+                      {currentPatient.bloodGroup && (
+                        <span className="px-1.5 py-0.2 rounded font-mono font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400">
+                          Blood: {currentPatient.bloodGroup}
+                        </span>
+                      )}
+                      {currentPatient.location && <span>• {currentPatient.location}</span>}
+                      <span>• Phone: {currentPatient.patientPhone}</span>
                     </p>
                   </div>
                   <div className="text-left sm:text-right text-xs">

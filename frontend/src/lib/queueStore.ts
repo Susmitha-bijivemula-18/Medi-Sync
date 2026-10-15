@@ -6,6 +6,8 @@ import {
   updateDoctorScheduleApi,
   API_BASE_URL 
 } from './supabase';
+import { mockDoctors } from './doctors';
+import { getCurrentDoctor } from './doctorAuth';
 
 export interface QueueAppointment {
   id: string;
@@ -14,6 +16,8 @@ export interface QueueAppointment {
   patientAge: number;
   patientPhone: string;
   patientEmail: string;
+  bloodGroup?: string;
+  location?: string;
   doctorId: string;
   doctorName: string;
   specialization: string;
@@ -158,112 +162,36 @@ export async function syncQueueFromBackend(doctorId: string = '1'): Promise<void
   }
 }
 
-// ─── Initial Fallback Data ──────────────────────────────────────────────────
-function generateDefaultAppointments(): QueueAppointment[] {
-  const today = getTodayDateString();
-
-  return [
-    {
-      id: 'apt-c1',
-      tokenNumber: 'A-23',
-      patientName: 'Ramesh Verma',
-      patientAge: 58,
-      patientPhone: '+91 98765 43210',
-      patientEmail: 'ramesh.v@example.com',
-      doctorId: '1',
-      doctorName: 'Dr. Ananya Rao',
-      specialization: 'Cardiology',
-      appointmentDate: today,
-      appointmentTime: '10:00 AM',
-      problemDescription: 'Experiencing mild chest tightness on brisk walking and elevated BP readings (150/95) at home.',
-      problemCategory: 'Hypertension / Chest Discomfort',
-      status: 'in-consultation',
-      vitals: { bp: '148/92 mmHg', pulse: '78 bpm', temp: '98.4 °F', weight: '74 kg' },
-      calledAt: '10:05 AM',
-    },
-    {
-      id: 'apt-c2',
-      tokenNumber: 'A-24',
-      patientName: 'Sujatha Reddy',
-      patientAge: 46,
-      patientPhone: '+91 98480 22334',
-      patientEmail: 'sujatha.r@example.com',
-      doctorId: '1',
-      doctorName: 'Dr. Ananya Rao',
-      specialization: 'Cardiology',
-      appointmentDate: today,
-      appointmentTime: '10:20 AM',
-      problemDescription: 'Palpitations after climbing stairs, routine quarterly lipid and ECG review.',
-      problemCategory: 'Cardiac Review',
-      status: 'waiting',
-      vitals: { bp: '130/84 mmHg', pulse: '86 bpm', temp: '98.6 °F', weight: '62 kg' },
-    },
-    {
-      id: 'apt-c3',
-      tokenNumber: 'A-25',
-      patientName: 'Venkatesh Murthy',
-      patientAge: 64,
-      patientPhone: '+91 94401 55667',
-      patientEmail: 'v.murthy@example.com',
-      doctorId: '1',
-      doctorName: 'Dr. Ananya Rao',
-      specialization: 'Cardiology',
-      appointmentDate: today,
-      appointmentTime: '10:40 AM',
-      problemDescription: 'Post-stent 6-month checkup, breathlessness subsided, reviewing medication tolerance.',
-      problemCategory: 'Post-Angioplasty Follow-up',
-      status: 'waiting',
-      vitals: { bp: '124/80 mmHg', pulse: '72 bpm', temp: '98.1 °F', weight: '68 kg' },
-    },
-    {
-      id: 'apt-c4',
-      tokenNumber: 'A-26',
-      patientName: 'Padma Lakshmi',
-      patientAge: 52,
-      patientPhone: '+91 91234 56789',
-      patientEmail: 'padma.l@example.com',
-      doctorId: '1',
-      doctorName: 'Dr. Ananya Rao',
-      specialization: 'Cardiology',
-      appointmentDate: today,
-      appointmentTime: '11:00 AM',
-      problemDescription: 'Occasional lightheadedness upon standing up quickly, history of mild sinus bradycardia.',
-      problemCategory: 'Arrhythmia Evaluation',
-      status: 'waiting',
-      vitals: { bp: '118/76 mmHg', pulse: '64 bpm', temp: '98.4 °F', weight: '57 kg' },
-    },
-    {
-      id: 'apt-c5',
-      tokenNumber: 'A-27',
-      patientName: 'Kishore Kumar',
-      patientAge: 49,
-      patientPhone: '+91 99887 76655',
-      patientEmail: 'kishore.k@example.com',
-      doctorId: '1',
-      doctorName: 'Dr. Ananya Rao',
-      specialization: 'Cardiology',
-      appointmentDate: today,
-      appointmentTime: '11:20 AM',
-      problemDescription: 'Annual executive cardiac health checkup, requesting 2D Echo screening review.',
-      problemCategory: 'Preventive Cardiac Screen',
-      status: 'waiting',
-      vitals: { bp: '136/88 mmHg', pulse: '80 bpm', temp: '98.5 °F', weight: '81 kg' },
-    },
-  ];
-}
-
 // ─── Local Storage Cache Helpers ────────────────────────────────────────────
 export function loadAllAppointments(): QueueAppointment[] {
   try {
     const raw = localStorage.getItem(QUEUE_STORAGE_KEY);
     if (!raw) {
-      const initial = generateDefaultAppointments();
-      saveAllAppointments(initial);
-      return initial;
+      return [];
     }
-    return JSON.parse(raw);
+    const parsed: QueueAppointment[] = JSON.parse(raw);
+    
+    // Purge any legacy dummy appointments (Ramesh Verma, apt-c1, etc.)
+    const realAppointments = parsed.filter((item) => {
+      const isDummyId = typeof item.id === 'string' && item.id.startsWith('apt-c');
+      const isDummyName = [
+        'Ramesh Verma',
+        'Sujatha Reddy',
+        'Venkatesh Murthy',
+        'Padma Lakshmi',
+        'Kishore Kumar',
+        'Siddharth Verma'
+      ].includes(item.patientName);
+      return !isDummyId && !isDummyName;
+    });
+
+    if (realAppointments.length !== parsed.length) {
+      localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(realAppointments));
+    }
+
+    return realAppointments;
   } catch {
-    return generateDefaultAppointments();
+    return [];
   }
 }
 
@@ -277,26 +205,74 @@ export function saveAllAppointments(appts: QueueAppointment[]): void {
 }
 
 // Get appointments for a specific doctor
-export function getAppointmentsForDoctor(doctorId: string): QueueAppointment[] {
+export function getAppointmentsForDoctor(doctorId: string, doctorName?: string): QueueAppointment[] {
   const all = loadAllAppointments();
-  const isAnanya = doctorId === '1' || doctorId.toLowerCase().includes('55c0cfbe');
-  return all.filter((a) => {
-    if (isAnanya) {
-      return a.doctorId === '1' || 
-             a.doctorId === '55c0cfbe-8dd3-4a96-b436-871c48114874' || 
-             a.doctorName?.includes('Ananya');
+  if (!doctorId && !doctorName) return [];
+
+  // Determine current active doctor context if available
+  const session = getCurrentDoctor();
+  const currentDoc = session?.doctor;
+
+  let searchId = doctorId || '';
+  let searchName = doctorName || '';
+
+  // If doctorId matches current session doctor or doctor name matches session doctor
+  if (currentDoc) {
+    if (currentDoc.id === doctorId || currentDoc.full_name?.toLowerCase().includes((doctorId || '').toLowerCase())) {
+      searchId = currentDoc.id;
+      searchName = searchName || currentDoc.full_name || '';
     }
-    return a.doctorId === doctorId;
+  }
+
+  // Lookup in mockDoctors by id or name
+  const foundInMock = mockDoctors.find(
+    (d) => d.id === searchId || (searchName && (d.full_name || '').toLowerCase() === searchName.toLowerCase())
+  );
+  if (foundInMock) {
+    searchName = searchName || foundInMock.full_name || '';
+  }
+
+  const cleanTargetName = searchName.replace(/^Dr\.?\s*/i, '').trim().toLowerCase();
+  const nameKeywords = cleanTargetName.split(/\s+/).filter((w) => w.length > 2);
+
+  return all.filter((a) => {
+    // 1. Direct ID match
+    if (a.doctorId && (a.doctorId === searchId || a.doctorId === doctorId)) {
+      return true;
+    }
+
+    // 2. Doctor Name match
+    if (a.doctorName) {
+      const cleanApptName = a.doctorName.replace(/^Dr\.?\s*/i, '').trim().toLowerCase();
+
+      if (cleanTargetName && (cleanApptName === cleanTargetName || cleanApptName.includes(cleanTargetName) || cleanTargetName.includes(cleanApptName))) {
+        return true;
+      }
+
+      if (nameKeywords.length > 0 && nameKeywords.some((kw) => cleanApptName.includes(kw))) {
+        return true;
+      }
+    }
+
+    // 3. Match if doctorId string itself contains doctor's name (e.g. 'karthik' in doctorId)
+    if (doctorId && typeof doctorId === 'string') {
+      const cleanInput = doctorId.replace(/^Dr\.?\s*/i, '').trim().toLowerCase();
+      if (cleanInput.length > 2 && a.doctorName && a.doctorName.toLowerCase().includes(cleanInput)) {
+        return true;
+      }
+    }
+
+    return false;
   });
 }
 
 // Get live waiting queue for a specific doctor (waiting & in-consultation)
-export function getLiveQueueForDoctor(doctorId: string): {
+export function getLiveQueueForDoctor(doctorId: string, doctorName?: string): {
   currentPatient: QueueAppointment | null;
   waitingQueue: QueueAppointment[];
   completedToday: QueueAppointment[];
 } {
-  const doctorAppts = getAppointmentsForDoctor(doctorId);
+  const doctorAppts = getAppointmentsForDoctor(doctorId, doctorName);
   const currentPatient = doctorAppts.find((a) => a.status === 'in-consultation') || null;
   const waitingQueue = doctorAppts.filter((a) => a.status === 'waiting');
   const completedToday = doctorAppts.filter((a) => a.status === 'completed');
@@ -305,14 +281,14 @@ export function getLiveQueueForDoctor(doctorId: string): {
 }
 
 // ─── Action: Call Next Patient (Backend Connected) ──────────────────────────
-export async function callNextPatient(doctorId: string): Promise<{ success: boolean; calledPatient: QueueAppointment | null }> {
+export async function callNextPatient(doctorId: string, doctorName?: string): Promise<{ success: boolean; calledPatient: QueueAppointment | null }> {
   try {
     // 1. Send action to backend
     const res = await callNextPatientApi(doctorId);
     if (res.success && res.calledPatient) {
       // 2. Refresh local state
       await syncQueueFromBackend(doctorId);
-      const updatedQueue = getLiveQueueForDoctor(doctorId);
+      const updatedQueue = getLiveQueueForDoctor(doctorId, doctorName);
       return { success: true, calledPatient: updatedQueue.currentPatient };
     }
   } catch (err) {
@@ -321,7 +297,7 @@ export async function callNextPatient(doctorId: string): Promise<{ success: bool
 
   // Fallback to local queue advance
   const all = loadAllAppointments();
-  const doctorAppts = all.filter((a) => a.doctorId === doctorId || a.doctorId === '1');
+  const doctorAppts = getAppointmentsForDoctor(doctorId, doctorName);
 
   const currentActive = doctorAppts.find((a) => a.status === 'in-consultation');
   if (currentActive) {
@@ -504,13 +480,13 @@ export function getPatientQueueStatus(tokenNumber: string = 'A-27'): {
 
   const userAppt = all.find((a) => a.tokenNumber === tokenNumber) || all[0];
   const doctorId = userAppt?.doctorId || '1';
-  const doctorAppts = getAppointmentsForDoctor(doctorId);
+  const doctorAppts = getAppointmentsForDoctor(doctorId, userAppt?.doctorName);
 
   const currentServing = doctorAppts.find((a) => a.status === 'in-consultation');
   const waitingList = doctorAppts.filter((a) => a.status === 'waiting');
 
   const userIndex = waitingList.findIndex((a) => a.id === userAppt?.id || a.tokenNumber === tokenNumber);
-  const isCurrentTurn = currentServing?.tokenNumber === tokenNumber || userAppt?.status === 'in-consultation';
+  const isCurrentTurn = Boolean(currentServing && currentServing.tokenNumber === tokenNumber) || userAppt?.status === 'in-consultation';
   const isCompleted = userAppt?.status === 'completed';
   const patientsAhead = (isCurrentTurn || isCompleted) ? 0 : (userIndex >= 0 ? userIndex : (currentServing ? 1 : 0));
   const estimatedWait = (isCurrentTurn || isCompleted) ? 0 : Math.max(5, (patientsAhead + (currentServing ? 1 : 0)) * 15);
@@ -518,13 +494,15 @@ export function getPatientQueueStatus(tokenNumber: string = 'A-27'): {
   const schedule = getDoctorScheduleSettings(doctorId);
 
   return {
-    currentToken: currentServing ? currentServing.tokenNumber : (waitingList[0]?.tokenNumber || '--'),
+    currentToken: currentServing ? currentServing.tokenNumber : '--',
     userToken: userAppt?.tokenNumber || tokenNumber,
-    doctorName: userAppt?.doctorName || 'Dr. Ananya Rao',
-    specialty: userAppt?.specialization || 'Cardiology',
+    doctorName: userAppt?.doctorName || 'Dr. Specialist',
+    specialty: userAppt?.specialization || 'Consultation',
     patientsAhead,
     estimatedWait,
-    clinicStatus: schedule.clinicStatus === 'active' ? 'Live Queue · In Consultation' : (schedule.statusMessage || 'In Clinic'),
+    clinicStatus: schedule.clinicStatus === 'active' 
+      ? (currentServing ? 'Live Queue · In Consultation' : 'Live Queue · Ready to Call') 
+      : (schedule.statusMessage || 'In Clinic'),
     isCurrentTurn,
     status: (userAppt?.status as any) || 'waiting',
     appointmentDate: userAppt?.appointmentDate,
@@ -542,6 +520,8 @@ export function recordNewBooking(data: {
   patientAge?: number;
   patientPhone?: string;
   patientEmail?: string;
+  bloodGroup?: string;
+  location?: string;
   doctorId: string;
   doctorName: string;
   specialization: string;
@@ -553,14 +533,27 @@ export function recordNewBooking(data: {
   id?: string;
 }): string {
   const all = loadAllAppointments();
-  const tokenNumber = data.tokenNumber || ('A-' + Math.floor(Math.random() * 40 + 30));
+  
+  // Format clean token: Doctor Initial + sequential number for today
+  const doctorInitial = (data.doctorName || 'Doctor')
+    .replace(/^Dr\.?\s*/i, '')
+    .trim()[0]?.toUpperCase() || 'A';
+  
+  const doctorTodayCount = all.filter(
+    (a) => a.doctorId === data.doctorId && a.appointmentDate === data.appointmentDate
+  ).length;
+  
+  const tokenNumber = data.tokenNumber || `${doctorInitial}-${String(doctorTodayCount + 1).padStart(2, '0')}`;
+  
   const newAppt: QueueAppointment = {
     id: data.id || ('apt-' + Date.now()),
     tokenNumber,
-    patientName: data.patientName || 'Verified Patient',
-    patientAge: data.patientAge || 34,
-    patientPhone: data.patientPhone || '+91 98765 12345',
-    patientEmail: data.patientEmail || 'patient@caretrack.com',
+    patientName: data.patientName || 'Patient',
+    patientAge: data.patientAge || 30,
+    patientPhone: data.patientPhone || '',
+    patientEmail: data.patientEmail || '',
+    bloodGroup: data.bloodGroup || '',
+    location: data.location || '',
     doctorId: data.doctorId,
     doctorName: data.doctorName,
     specialization: data.specialization,
@@ -570,10 +563,10 @@ export function recordNewBooking(data: {
     problemCategory: data.problemCategory || data.specialization,
     status: 'waiting',
     vitals: {
-      bp: '122/80 mmHg',
+      bp: '120/80 mmHg',
       pulse: '74 bpm',
       temp: '98.4 °F',
-      weight: '67 kg',
+      weight: '65 kg',
     },
   };
 

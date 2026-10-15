@@ -14,8 +14,9 @@ export function DoctorAppointments() {
   const session = getCurrentDoctor();
   const doctor = session?.doctor;
   const doctorId = doctor?.id || '1';
+  const doctorName = doctor?.full_name || '';
 
-  const [appointments, setAppointments] = useState<QueueAppointment[]>(() => getAppointmentsForDoctor(doctorId));
+  const [appointments, setAppointments] = useState<QueueAppointment[]>(() => getAppointmentsForDoctor(doctorId, doctorName));
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all'); // 'all', 'today', 'upcoming'
@@ -23,10 +24,10 @@ export function DoctorAppointments() {
 
   useEffect(() => {
     initQueueSync(doctorId);
-    const refresh = () => setAppointments(getAppointmentsForDoctor(doctorId));
+    const refresh = () => setAppointments(getAppointmentsForDoctor(doctorId, doctorName));
     window.addEventListener('caretrack:queue-update', refresh);
     return () => window.removeEventListener('caretrack:queue-update', refresh);
-  }, [doctorId]);
+  }, [doctorId, doctorName]);
 
   const todayStr = getTodayDateString();
 
@@ -178,8 +179,16 @@ export function DoctorAppointments() {
                     <span className="text-[11px]">{item.appointmentTime}</span>
                   </td>
                   <td className="py-3.5 px-4 text-muted-foreground">
-                    <span className="block">{item.patientAge} yrs</span>
-                    <span className="text-[11px] font-mono">{item.patientPhone}</span>
+                    <span className="block font-medium text-foreground">
+                      {item.patientAge} yrs
+                      {item.bloodGroup && (
+                        <span className="ml-1.5 px-1.5 py-0.2 rounded text-[10px] font-bold bg-rose-500/10 text-rose-600 dark:text-rose-400">
+                          {item.bloodGroup}
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-[11px] font-mono block">{item.patientPhone}</span>
+                    {item.location && <span className="text-[10px] text-muted-foreground block truncate max-w-[120px]">{item.location}</span>}
                   </td>
                   <td className="py-3.5 px-4 text-muted-foreground max-w-xs truncate">
                     {item.problemCategory}

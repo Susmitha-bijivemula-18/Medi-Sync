@@ -1,47 +1,63 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, MapPin, Bell, CheckCircle2, FileText, Pill } from 'lucide-react';
+import { ArrowLeft, MapPin, Bell, CheckCircle2, FileText, Pill, Activity } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { getPatientQueueStatus, initQueueSync } from '../lib/queueStore';
+import { getPatientQueueStatus, initQueueSync, loadAllAppointments } from '../lib/queueStore';
 import { fetchPatientQueueStatus } from '../lib/supabase';
+import { DoctorAvatar } from '../components/common/DoctorAvatar';
+import { mockDoctors } from '../lib/doctors';
 
 export function QueueTracking() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const tokenParam = searchParams.get('token') || 'A-27';
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [allAppointments, setAllAppointments] = useState(() => loadAllAppointments());
 
-  const [queueState, setQueueState] = useState(() => getPatientQueueStatus(tokenParam));
+  // Determine target token
+  const tokenFromUrl = searchParams.get('token');
+  const activeAppt = useMemo(() => {
+    return allAppointments.find((a) => a.status === 'in-consultation') ||
+           allAppointments.find((a) => a.status === 'waiting') ||
+           allAppointments[0];
+  }, [allAppointments]);
+
+  const activeToken = tokenFromUrl || activeAppt?.tokenNumber || '';
+  const [queueState, setQueueState] = useState(() => getPatientQueueStatus(activeToken));
 
   useEffect(() => {
     initQueueSync();
 
     const refresh = async () => {
-      // 1. Local sync
-      setQueueState(getPatientQueueStatus(tokenParam));
+      const updatedList = loadAllAppointments();
+      setAllAppointments(updatedList);
 
-      // 2. Direct backend query
-      try {
-        const live = await fetchPatientQueueStatus(tokenParam);
-        if (live) {
-          setQueueState((prev) => ({
-            ...prev,
-            currentToken: live.currentToken || prev.currentToken,
-            patientsAhead: live.patientsAhead !== undefined ? live.patientsAhead : prev.patientsAhead,
-            estimatedWait: live.estimatedWait !== undefined ? live.estimatedWait : prev.estimatedWait,
-            clinicStatus: live.clinicStatus || prev.clinicStatus,
-            isCurrentTurn: live.isCurrentTurn,
-            status: (live.appointmentStatus as any) || prev.status,
-          }));
+      // 1. Local sync
+      setQueueState(getPatientQueueStatus(activeToken));
+
+      // 2. Direct backend query if token exists
+      if (activeToken) {
+        try {
+          const live = await fetchPatientQueueStatus(activeToken);
+          if (live) {
+            setQueueState((prev) => ({
+              ...prev,
+              currentToken: live.currentToken || prev.currentToken,
+              patientsAhead: live.patientsAhead !== undefined ? live.patientsAhead : prev.patientsAhead,
+              estimatedWait: live.estimatedWait !== undefined ? live.estimatedWait : prev.estimatedWait,
+              clinicStatus: live.clinicStatus || prev.clinicStatus,
+              isCurrentTurn: live.isCurrentTurn,
+              status: (live.appointmentStatus as any) || prev.status,
+            }));
+          }
+        } catch {
+          // Maintain local store state
         }
-      } catch {
-        // Maintain local store state
       }
     };
 
     refresh();
     window.addEventListener('caretrack:queue-update', refresh);
     return () => window.removeEventListener('caretrack:queue-update', refresh);
-  }, [tokenParam]);
+  }, [activeToken]);
 
   const {
     currentToken,
@@ -59,28 +75,75 @@ export function QueueTracking() {
     prescription,
   } = queueState;
 
+  // Find corresponding doctor metadata for avatar, room, fee
+  const currentAppt = allAppointments.find((a) => a.tokenNumber === userToken);
+  const matchedDoctor = mockDoctors.find(
+    (d) => d.id === currentAppt?.doctorId || (d.full_name || '').toLowerCase() === (doctorName || '').toLowerCase()
+  );
+
   const isCompleted = status === 'completed';
-  const isCurrent = isCurrentTurn || currentToken === userToken || status === 'in-consultation';
-  const progressPercent = isCompleted ? 100 : (isCurrent ? 100 : Math.max(15, Math.min(90, 100 - patientsAhead * 25)));
+  const isCurrent = !isCompleted && (status === 'in-consultation' || (isCurrentTurn && status !== 'waiting'));
+  const progressPercent = isCompleted ? 100 : (isCurrent ? 100 : Math.max(15, Math.min(85, 100 - (patientsAhead + 1) * 20)));
+
+  // If no appointments exist at all
+  if (!userToken || allAppointments.length === 0) {
+    return (
+      <div className="max-w-2xl mx-auto py-16 px-4 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-brand/10 text-brand flex items-center justify-center mx-auto mb-4">
+          <Activity className="w-8 h-8" />
+        </div>
+        <h2 className="text-2xl font-heading font-bold text-foreground mb-2">No Active Queue Token</h2>
+        <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6">
+          You don't have an active consultation queued right now. Book an appointment with one of our top specialists to track your live token.
+        </p>
+        <button
+          onClick={() => navigate('/book-appointment')}
+          className="px-6 py-3 bg-brand text-white rounded-xl text-sm font-semibold hover:bg-brand/90 transition-all shadow-sm cursor-pointer"
+        >
+          Book an Appointment →
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto py-8">
       {/* ── Header ──────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-4 mb-8">
-        <button
-          onClick={() => navigate('/patient/dashboard')}
-          className="p-2.5 rounded-xl border border-border bg-card text-foreground hover:bg-secondary transition-colors cursor-pointer"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div>
-          <h1 className="text-2xl font-heading font-semibold tracking-tight text-foreground">
-            Live Queue Tracking
-          </h1>
-          <p className="text-[13px] text-muted-foreground mt-1 font-medium">
-            Real-time status synchronized with Dr. {doctorName}'s clinic desk
-          </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate('/patient/dashboard')}
+            className="p-2.5 rounded-xl border border-border bg-card text-foreground hover:bg-secondary transition-colors cursor-pointer"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-heading font-semibold tracking-tight text-foreground">
+              Live Queue Tracking
+            </h1>
+            <p className="text-[13px] text-muted-foreground mt-0.5 font-medium">
+              Real-time outpatient queue status for {doctorName}
+            </p>
+          </div>
         </div>
+
+        {/* Multi-token switcher if patient has multiple bookings */}
+        {allAppointments.length > 1 && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground font-semibold">Your Bookings:</span>
+            <select
+              value={userToken}
+              onChange={(e) => setSearchParams({ token: e.target.value })}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-border bg-card text-foreground focus:ring-1 focus:ring-brand outline-none cursor-pointer"
+            >
+              {allAppointments.map((appt) => (
+                <option key={appt.id} value={appt.tokenNumber}>
+                  Token {appt.tokenNumber} · {appt.doctorName}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -95,13 +158,11 @@ export function QueueTracking() {
             <div className="p-6 border-b border-border/50">
               <div className="flex justify-between items-start mb-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-full bg-secondary border border-border overflow-hidden flex-shrink-0 flex items-center justify-center">
-                    <img 
-                      src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&q=80" 
-                      alt="Doctor" 
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
+                  <DoctorAvatar
+                    src={matchedDoctor?.avatar}
+                    name={doctorName}
+                    className="w-14 h-14"
+                  />
                   <div>
                     <h2 className="text-xl font-heading font-semibold text-foreground">{doctorName}</h2>
                     <p className="text-[12px] font-semibold tracking-wider uppercase text-muted-foreground mt-0.5">{specialty}</p>
@@ -193,14 +254,16 @@ export function QueueTracking() {
                   ? 'Consultation Completed'
                   : (isCurrent 
                     ? "It's Your Turn Now" 
-                    : (patientsAhead <= 1 ? 'Your turn is approaching' : 'Queue Position Confirmed'))}
+                    : (patientsAhead === 0 ? "You're Next In Line" : (patientsAhead === 1 ? 'Your turn is approaching' : 'Queue Position Confirmed')))}
               </h3>
               <p className="text-[13px] text-foreground/80 leading-relaxed font-medium">
                 {isCompleted
                   ? `Your consultation with ${doctorName} has concluded. Details and prescriptions are recorded below.`
                   : (isCurrent 
                     ? `Token ${userToken} has been called into Room 304 by ${doctorName}. Please proceed inside.`
-                    : `Please wait in the ${specialty} outpatient waiting area. Your estimated wait is ${estimatedWait} minutes.`)}
+                    : (patientsAhead === 0
+                        ? `You are next in line for ${doctorName}. Please wait outside Room 304; your token will be called shortly.`
+                        : `Please wait in the ${specialty} outpatient waiting area. Your estimated wait is ${estimatedWait} minutes.`))}
               </p>
 
               {/* Consultation Notes & Prescriptions upon completion */}
@@ -280,7 +343,7 @@ export function QueueTracking() {
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground font-medium">Fee</span>
-                <span className="font-semibold text-foreground">₹800</span>
+                <span className="font-semibold text-foreground">₹{matchedDoctor?.consultation_fee || 800}</span>
               </div>
             </div>
             

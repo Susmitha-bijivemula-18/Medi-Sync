@@ -19,46 +19,72 @@ interface NotificationItem {
   read: boolean;
 }
 
+import { loadAllAppointments } from '../../lib/queueStore';
+
 export function PatientNotifications() {
   const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
     const saved = localStorage.getItem('caretrack_patient_notifications');
     if (saved) {
-      try { return JSON.parse(saved); } catch {}
+      try { 
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
     }
-    return [
-      {
-        id: 'notif-1',
-        title: 'Token A-23 Called',
-        message: 'Dr. Ananya Rao has called Token A-23 into Consultation Room 104.',
-        timestamp: '10 mins ago',
-        type: 'queue',
-        read: false,
-      },
-      {
-        id: 'notif-2',
-        title: 'Queue Moving Promptly',
-        message: 'Current waiting time is running at an estimated 8 minutes per patient.',
-        timestamp: '25 mins ago',
-        type: 'schedule',
-        read: false,
-      },
-      {
-        id: 'notif-3',
-        title: 'Appointment Confirmed',
-        message: 'Your Cardiology appointment with Dr. Ananya Rao is confirmed for today.',
-        timestamp: '1 hour ago',
+
+    // Build notifications dynamically from real patient appointments
+    const all = loadAllAppointments();
+    if (all.length === 0) {
+      return [
+        {
+          id: 'welcome-notif',
+          title: 'Welcome to CareTrack Live Queue',
+          message: 'Book your outpatient doctor consultation to receive live token updates and estimated wait alerts.',
+          timestamp: 'Just now',
+          type: 'schedule',
+          read: false,
+        },
+      ];
+    }
+
+    const generated: NotificationItem[] = [];
+
+    all.forEach((appt, idx) => {
+      // 1. Booking notification
+      generated.push({
+        id: `notif-book-${appt.id}`,
+        title: `Token ${appt.tokenNumber} Confirmed`,
+        message: `Your consultation with ${appt.doctorName} (${appt.specialization}) is confirmed for ${appt.appointmentDate} at ${appt.appointmentTime}.`,
+        timestamp: `${idx * 15 + 5}m ago`,
         type: 'appointment',
-        read: true,
-      },
-      {
-        id: 'notif-4',
-        title: 'Digital Prescription Synced',
-        message: 'Your clinical prescription and vital records have been securely added to your portfolio.',
-        timestamp: 'Yesterday',
-        type: 'rx',
-        read: true,
-      },
-    ];
+        read: idx > 0,
+      });
+
+      // 2. In-consultation notification
+      if (appt.status === 'in-consultation') {
+        generated.unshift({
+          id: `notif-called-${appt.id}`,
+          title: `Token ${appt.tokenNumber} Called Now`,
+          message: `${appt.doctorName} has called your token into the consultation room. Please proceed inside.`,
+          timestamp: 'Just now',
+          type: 'queue',
+          read: false,
+        });
+      }
+
+      // 3. Completed notification
+      if (appt.status === 'completed') {
+        generated.unshift({
+          id: `notif-completed-${appt.id}`,
+          title: `Consultation Concluded`,
+          message: `Your visit with ${appt.doctorName} is complete. Your summary and digital prescription have been archived in Records.`,
+          timestamp: 'Earlier today',
+          type: 'rx',
+          read: true,
+        });
+      }
+    });
+
+    return generated;
   });
 
   const [filter, setFilter] = useState<'all' | 'unread'>('all');

@@ -25,9 +25,10 @@ export function DoctorPatients() {
   const session = getCurrentDoctor();
   const doctor = session?.doctor;
   const doctorId = doctor?.id || '1';
+  const doctorName = doctor?.full_name || '';
 
   const [appointments, setAppointments] = useState<QueueAppointment[]>(() => 
-    getAppointmentsForDoctor(doctorId)
+    getAppointmentsForDoctor(doctorId, doctorName)
   );
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
@@ -39,10 +40,10 @@ export function DoctorPatients() {
 
   useEffect(() => {
     initQueueSync(doctorId);
-    const refresh = () => setAppointments(getAppointmentsForDoctor(doctorId));
+    const refresh = () => setAppointments(getAppointmentsForDoctor(doctorId, doctorName));
     window.addEventListener('caretrack:queue-update', refresh);
     return () => window.removeEventListener('caretrack:queue-update', refresh);
-  }, [doctorId]);
+  }, [doctorId, doctorName]);
 
   // Group appointments by unique patient (using patientPhone or patientEmail as identity key)
   const patientsMap = useMemo(() => {
@@ -51,6 +52,8 @@ export function DoctorPatients() {
       patientAge: number;
       patientPhone: string;
       patientEmail: string;
+      bloodGroup?: string;
+      location?: string;
       records: QueueAppointment[];
       latestAppointment: QueueAppointment;
     }>();
@@ -63,12 +66,16 @@ export function DoctorPatients() {
           patientAge: appt.patientAge,
           patientPhone: appt.patientPhone,
           patientEmail: appt.patientEmail,
+          bloodGroup: appt.bloodGroup,
+          location: appt.location,
           records: [appt],
           latestAppointment: appt,
         });
       } else {
         const existing = map.get(key)!;
         existing.records.push(appt);
+        if (!existing.bloodGroup && appt.bloodGroup) existing.bloodGroup = appt.bloodGroup;
+        if (!existing.location && appt.location) existing.location = appt.location;
       }
     });
 
@@ -244,6 +251,20 @@ export function DoctorPatients() {
                   </h2>
                   <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-0.5">
                     <span>{activePatient.patientAge} Years Old</span>
+                    {activePatient.bloodGroup && (
+                      <>
+                        <span>•</span>
+                        <span className="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 font-semibold font-mono">
+                          Blood: {activePatient.bloodGroup}
+                        </span>
+                      </>
+                    )}
+                    {activePatient.location && (
+                      <>
+                        <span>•</span>
+                        <span>{activePatient.location}</span>
+                      </>
+                    )}
                     <span>•</span>
                     <span className="flex items-center gap-1">
                       <Phone className="w-3 h-3" />

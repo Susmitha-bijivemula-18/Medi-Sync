@@ -23,11 +23,34 @@ export function Dashboard() {
   const queueInfo = activeAppt ? getPatientQueueStatus(activeAppt.tokenNumber) : null;
   const upcomingVisits = appointments.filter((a) => a.id !== activeAppt?.id && (a.status === 'waiting' || a.status === 'in-consultation')).slice(0, 4);
 
+  const [patientName] = useState<string>(() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const u = JSON.parse(userStr);
+        if (u.name) return u.name;
+        if (u.email) return u.email.split('@')[0];
+      }
+      const profStr = localStorage.getItem('caretrack_patient_profile');
+      if (profStr) {
+        const p = JSON.parse(profStr);
+        if (p.fullName && p.fullName !== 'Patient') return p.fullName;
+      }
+    } catch {}
+    return '';
+  });
+
+  const recentRecords = appointments.filter(
+    (a) => a.status === 'completed' || a.clinicalNotes || a.vitals || a.prescription
+  ).slice(0, 3);
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Good morning, Patient Portal</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            {patientName ? `Welcome back, ${patientName}` : 'Welcome to CareTrack'}
+          </h1>
           <p className="text-muted-foreground mt-1">Here's what's happening with your care today.</p>
         </div>
         <div className="flex items-center gap-3">
@@ -155,29 +178,42 @@ export function Dashboard() {
         <div className="rounded-2xl border border-border bg-card p-6 shadow-sm flex flex-col h-full">
           <div className="flex items-center justify-between mb-6">
             <h2 className="font-semibold text-lg">Recent Clinical Records</h2>
-            <span className="text-xs text-muted-foreground">Synchronized</span>
+            <button
+              onClick={() => navigate('/patient/records')}
+              className="text-xs font-semibold text-brand hover:underline cursor-pointer"
+            >
+              View portfolio →
+            </button>
           </div>
           <div className="space-y-3 flex-1">
-            {[
-              { title: 'Cardiology Consultation Report', doctor: 'Dr. Ananya Rao', date: 'Oct 14, 2026', type: 'Clinical' },
-              { title: 'Blood Pressure & ECG Review', doctor: 'Dr. Ananya Rao', date: 'Oct 01, 2026', type: 'Vitals' },
-              { title: 'General Health Screening', doctor: 'Dr. Priya Nair', date: 'Sep 15, 2026', type: 'Note' },
-            ].map((record, i) => (
-              <div key={i} className="flex items-center justify-between p-4 rounded-xl border border-transparent hover:border-border bg-transparent hover:bg-secondary/50 transition-all cursor-pointer group">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-secondary text-secondary-foreground flex items-center justify-center group-hover:bg-background group-hover:shadow-sm transition-all">
-                    <FileText className="w-5 h-5" />
+            {recentRecords.length > 0 ? (
+              recentRecords.map((record) => (
+                <div 
+                  key={record.id} 
+                  onClick={() => navigate('/patient/records')}
+                  className="flex items-center justify-between p-4 rounded-xl border border-transparent hover:border-border bg-transparent hover:bg-secondary/50 transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-secondary text-secondary-foreground flex items-center justify-center group-hover:bg-background group-hover:shadow-sm transition-all">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-sm text-foreground group-hover:text-brand transition-colors">
+                        {record.problemCategory || 'Consultation Record'}
+                      </h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">{record.doctorName} • {record.appointmentDate}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium text-sm text-foreground">{record.title}</h4>
-                    <p className="text-xs text-muted-foreground mt-0.5">{record.doctor} • {record.date}</p>
+                  <div className="text-[10px] font-semibold px-2 py-1 bg-secondary rounded uppercase tracking-wider text-secondary-foreground">
+                    {record.status === 'completed' ? 'Completed' : (record.vitals ? 'Vitals' : 'Notes')}
                   </div>
                 </div>
-                <div className="text-[10px] font-semibold px-2 py-1 bg-secondary rounded uppercase tracking-wider text-secondary-foreground">
-                  {record.type}
-                </div>
+              ))
+            ) : (
+              <div className="py-8 text-center text-muted-foreground text-xs">
+                No archived clinical records yet. Completed visit summaries and digital prescriptions will appear here.
               </div>
-            ))}
+            )}
           </div>
         </div>
 

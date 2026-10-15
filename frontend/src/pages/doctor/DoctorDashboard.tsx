@@ -22,19 +22,20 @@ export function DoctorDashboard() {
   const session = getCurrentDoctor();
   const doctor = session?.doctor;
   const doctorId = doctor?.id || '1';
+  const doctorName = doctor?.full_name || '';
 
-  const [queueData, setQueueData] = useState(() => getLiveQueueForDoctor(doctorId));
+  const [queueData, setQueueData] = useState(() => getLiveQueueForDoctor(doctorId, doctorName));
   const [schedule, setSchedule] = useState(() => getDoctorScheduleSettings(doctorId));
 
   useEffect(() => {
     initQueueSync(doctorId);
     const refresh = () => {
-      setQueueData(getLiveQueueForDoctor(doctorId));
+      setQueueData(getLiveQueueForDoctor(doctorId, doctorName));
       setSchedule(getDoctorScheduleSettings(doctorId));
     };
     window.addEventListener('caretrack:queue-update', refresh);
     return () => window.removeEventListener('caretrack:queue-update', refresh);
-  }, [doctorId]);
+  }, [doctorId, doctorName]);
 
   if (!doctor) return null;
 
@@ -42,8 +43,8 @@ export function DoctorDashboard() {
   const totalToday = (currentPatient ? 1 : 0) + waitingQueue.length + completedToday.length;
 
   const handleCallNext = async () => {
-    await callNextPatient(doctorId);
-    setQueueData(getLiveQueueForDoctor(doctorId));
+    await callNextPatient(doctorId, doctorName);
+    setQueueData(getLiveQueueForDoctor(doctorId, doctorName));
   };
 
   return (

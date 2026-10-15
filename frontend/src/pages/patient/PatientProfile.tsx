@@ -23,25 +23,38 @@ interface PatientProfileData {
   chronicConditions: string;
 }
 
+import { loadAllAppointments } from '../../lib/queueStore';
+
 export function PatientProfile() {
   const [profile, setProfile] = useState<PatientProfileData>(() => {
     const saved = localStorage.getItem('caretrack_patient_profile');
     if (saved) {
       try { return JSON.parse(saved); } catch {}
     }
+
+    // Try reading active logged in patient or latest appointment
+    const userStr = localStorage.getItem('user');
+    let u: any = {};
+    if (userStr) {
+      try { u = JSON.parse(userStr); } catch {}
+    }
+
+    const all = loadAllAppointments();
+    const latest = all[all.length - 1];
+
     return {
-      fullName: 'Siddharth Verma',
-      age: 32,
-      gender: 'Male',
-      phone: '+91 98888 77777',
-      email: 'sid.verma@example.com',
-      bloodGroup: 'O+',
-      address: '742 Lotus Boulevard, Indiranagar, Bengaluru, KA',
-      emergencyContactName: 'Anita Verma',
-      emergencyContactRelation: 'Spouse',
-      emergencyContactPhone: '+91 98888 66666',
-      allergies: 'Penicillin, Shellfish',
-      chronicConditions: 'Mild Hypertension (Managed)',
+      fullName: u.name || latest?.patientName || 'Patient',
+      age: Number(u.age || latest?.patientAge || 28),
+      gender: u.gender || 'Not Specified',
+      phone: u.phone || latest?.patientPhone || '+91 ',
+      email: u.email || latest?.patientEmail || '',
+      bloodGroup: u.bloodGroup || latest?.bloodGroup || 'O+',
+      address: u.location || latest?.location || 'Hyderabad, Telangana',
+      emergencyContactName: u.emergencyContactName || '',
+      emergencyContactRelation: u.emergencyContactRelation || 'Family',
+      emergencyContactPhone: u.emergencyContactPhone || '',
+      allergies: u.allergies || 'None reported',
+      chronicConditions: u.chronicConditions || 'None',
     };
   });
 
@@ -50,6 +63,26 @@ export function PatientProfile() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     localStorage.setItem('caretrack_patient_profile', JSON.stringify(profile));
+
+    // Also sync to active user session
+    const userStr = localStorage.getItem('user');
+    let existingUser: any = {};
+    if (userStr) {
+      try { existingUser = JSON.parse(userStr); } catch {}
+    }
+    const updatedUser = {
+      ...existingUser,
+      name: profile.fullName,
+      email: profile.email,
+      phone: profile.phone,
+      age: profile.age,
+      gender: profile.gender,
+      bloodGroup: profile.bloodGroup,
+      location: profile.address,
+    };
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    window.dispatchEvent(new Event('caretrack:user-updated'));
+
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
   };

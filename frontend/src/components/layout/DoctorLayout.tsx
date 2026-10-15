@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { getCurrentDoctor, doctorSignOut } from '../../lib/doctorAuth';
+import { DoctorAvatar } from '../common/DoctorAvatar';
 import { getDoctorScheduleSettings, saveDoctorScheduleSettings } from '../../lib/queueStore';
 
 const doctorNavItems = [
@@ -113,10 +114,10 @@ export function DoctorLayout() {
         {/* Active Doctor Identity Card */}
         <div className="p-4 mx-3 my-3 rounded-lg bg-secondary/50 border border-border/60">
           <div className="flex items-center gap-3">
-            <img
-              src={doctor.avatar || 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&q=80'}
-              alt={doctor.full_name}
-              className="w-10 h-10 rounded-full object-cover border border-border shrink-0"
+            <DoctorAvatar
+              src={doctor.avatar}
+              name={doctor.full_name}
+              className="w-10 h-10 border border-border shrink-0"
             />
             <div className="min-w-0 flex-1">
               <h3 className="text-xs font-heading font-bold text-foreground truncate">
@@ -307,10 +308,10 @@ export function DoctorLayout() {
 
               {/* Mobile Doctor Card */}
               <div className="my-4 p-3 rounded-lg bg-secondary/60 flex items-center gap-3">
-                <img
-                  src={doctor.avatar || 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&h=150&fit=crop&q=80'}
-                  alt={doctor.full_name}
-                  className="w-10 h-10 rounded-full object-cover border border-border shrink-0"
+                <DoctorAvatar
+                  src={doctor.avatar}
+                  name={doctor.full_name}
+                  className="w-10 h-10 border border-border shrink-0"
                 />
                 <div className="min-w-0">
                   <h3 className="text-xs font-bold text-foreground truncate">{doctor.full_name}</h3>
