@@ -1,7 +1,7 @@
 import { Menu, Moon, Sun, Bell } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CareTrackIcon } from '../ui/Logo';
+import { MediSyncIcon } from '../ui/Logo';
 
 interface TopbarProps {
   onMenuClick: () => void;
@@ -36,7 +36,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         >
           <Menu className="w-5 h-5" />
         </button>
-        <CareTrackIcon className="w-6 h-6 md:hidden" />
+        <MediSyncIcon className="w-6 h-6 md:hidden" />
       </div>
 
       <div className="flex items-center gap-1.5 sm:gap-2">

@@ -10,8 +10,12 @@ export function Dashboard() {
   useEffect(() => {
     initQueueSync();
     const refresh = () => setAppointments(loadAllAppointments());
+    window.addEventListener('medisync:queue-update', refresh);
     window.addEventListener('caretrack:queue-update', refresh);
-    return () => window.removeEventListener('caretrack:queue-update', refresh);
+    return () => {
+      window.removeEventListener('medisync:queue-update', refresh);
+      window.removeEventListener('caretrack:queue-update', refresh);
+    };
   }, []);
 
   // Find active appointment: prioritized by in-consultation, then waiting, then most recent
@@ -49,7 +53,7 @@ export function Dashboard() {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            {patientName ? `Welcome back, ${patientName}` : 'Welcome to CareTrack'}
+            {patientName ? `Welcome back, ${patientName}` : 'Welcome to MediSync'}
           </h1>
           <p className="text-muted-foreground mt-1">Here's what's happening with your care today.</p>
         </div>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, Menu, X, Sun, Moon } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { CareTrackLogo } from '../ui/Logo';
+import { MediSyncLogo } from '../ui/Logo';
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -11,7 +11,7 @@ export function Navbar() {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('theme');
       if (stored) return stored === 'dark';
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+      return false;
     }
     return false;
   });
@@ -67,7 +67,7 @@ export function Navbar() {
           
           {/* LEFT: Brand Lockup */}
           <div className="flex-1 flex items-center justify-start z-50">
-            <CareTrackLogo />
+            <MediSyncLogo />
           </div>
 
           {/* CENTER: Refined Navigation Composition */}

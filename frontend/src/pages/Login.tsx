@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, ArrowLeft, Mail, Lock, AlertCircle } from 'lucide-react';
 import { signIn, signUp } from '../lib/supabase';
-import { CareTrackLogoCompact } from '../components/ui/Logo';
+import { MediSyncLogoCompact } from '../components/ui/Logo';
 
 export function Login() {
   const navigate = useNavigate();
@@ -50,12 +50,12 @@ export function Login() {
       <div className="hidden lg:flex lg:w-[45%] relative items-center justify-center p-12 bg-zinc-50 border-r border-border overflow-hidden">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         <div className="relative z-10 max-w-md">
-          <CareTrackLogoCompact className="mb-12" />
+          <MediSyncLogoCompact className="mb-12" />
           <h2 className="text-4xl font-bold tracking-tight mb-4 text-foreground leading-tight text-balance">
             Your healthcare journey, simplified.
           </h2>
           <p className="text-lg text-muted-foreground leading-relaxed text-balance">
-            Sign in to manage appointments, track your queue, access medical records, and stay connected with your healthcare providers.
+            Sign in to manage appointments, track your queue in real time, access medical records, and stay connected with your healthcare specialists on MediSync.
           </p>
         </div>
       </div>
@@ -67,14 +67,17 @@ export function Login() {
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-[400px]"
         >
-          {/* Back button (mobile) */}
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 mb-8 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors lg:hidden"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Home
-          </Link>
+          {/* Mobile Header with Brand & Back */}
+          <div className="flex items-center justify-between mb-8 lg:hidden">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back</span>
+            </Link>
+            <MediSyncLogoCompact size="sm" />
+          </div>
 
           <div className="mb-8">
             <h1 className="text-2xl font-bold tracking-tight text-foreground mb-2">

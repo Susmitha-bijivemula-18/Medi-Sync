@@ -17,8 +17,12 @@ export function PatientRecords() {
   useEffect(() => {
     initQueueSync();
     const refresh = () => setAppointments(loadAllAppointments());
+    window.addEventListener('medisync:queue-update', refresh);
     window.addEventListener('caretrack:queue-update', refresh);
-    return () => window.removeEventListener('caretrack:queue-update', refresh);
+    return () => {
+      window.removeEventListener('medisync:queue-update', refresh);
+      window.removeEventListener('caretrack:queue-update', refresh);
+    };
   }, []);
 
   // Filter only records that have clinical details or are completed
@@ -156,7 +160,7 @@ export function PatientRecords() {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-foreground">Official Clinical Consultation Record</h3>
-                  <p className="text-xs text-muted-foreground">CareTrack Medical Center · Token {selectedRecord.tokenNumber}</p>
+                  <p className="text-xs text-muted-foreground">MediSync Medical Center · Token {selectedRecord.tokenNumber}</p>
                 </div>
               </div>
               <button

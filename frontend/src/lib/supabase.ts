@@ -282,6 +282,20 @@ export async function updateAppointmentStatusApi(id: string, payload: {
   }
 }
 
+export async function checkInAppointmentApi(id: string): Promise<Appointment | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/appointments/${id}/check-in`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) throw new Error('Failed to check in appointment');
+    return await response.json();
+  } catch (error) {
+    console.error('Error checking in appointment:', error);
+    return null;
+  }
+}
+
 export async function fetchAvailableSlots(doctorId: string, dateStr?: string): Promise<{ time: string; available: boolean }[]> {
   try {
     const url = dateStr 

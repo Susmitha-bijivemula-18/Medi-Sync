@@ -12,13 +12,13 @@ import {
   X, 
   Sun, 
   Moon, 
-  Stethoscope,
   ExternalLink
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { getCurrentDoctor, doctorSignOut } from '../../lib/doctorAuth';
 import { DoctorAvatar } from '../common/DoctorAvatar';
 import { getDoctorScheduleSettings, saveDoctorScheduleSettings } from '../../lib/queueStore';
+import { MediSyncIcon } from '../ui/Logo';
 
 const doctorNavItems = [
   { name: 'Dashboard', path: '/doctor/dashboard', icon: LayoutDashboard },
@@ -34,7 +34,7 @@ export function DoctorLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Clinic status state
-  const doctorId = session?.doctor?.id || '1';
+  const doctorId = session?.doctor?.id || '6b69e7a2-bd9d-4c62-8fa4-10a49eb0f0f7';
   const [schedule, setSchedule] = useState(() => getDoctorScheduleSettings(doctorId));
 
   const [isDark, setIsDark] = useState(() => {
@@ -59,8 +59,12 @@ export function DoctorLayout() {
     const handleStatusUpdate = () => {
       setSchedule(getDoctorScheduleSettings(doctorId));
     };
+    window.addEventListener('medisync:queue-update', handleStatusUpdate);
     window.addEventListener('caretrack:queue-update', handleStatusUpdate);
-    return () => window.removeEventListener('caretrack:queue-update', handleStatusUpdate);
+    return () => {
+      window.removeEventListener('medisync:queue-update', handleStatusUpdate);
+      window.removeEventListener('caretrack:queue-update', handleStatusUpdate);
+    };
   }, [doctorId]);
 
   // Protect route
@@ -97,12 +101,10 @@ export function DoctorLayout() {
         {/* Brand / Doctor Portal Header */}
         <div className="p-5 border-b border-border/70 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-brand text-brand-foreground flex items-center justify-center font-bold text-sm">
-              <Stethoscope className="w-4 h-4" />
-            </div>
+            <MediSyncIcon size={30} />
             <div>
-              <span className="font-heading font-bold text-sm tracking-tight text-foreground block">
-                CareTrack
+              <span className="font-heading font-bold text-sm tracking-tight block">
+                <span className="text-[#102747] font-bold" style={{ color: '#102747' }}>Medi</span><span className="text-[#1677F2] font-bold">Sync</span>
               </span>
               <span className="text-[10px] font-semibold uppercase tracking-wider text-brand block">
                 Doctor Portal
@@ -286,12 +288,10 @@ export function DoctorLayout() {
             >
               <div className="flex items-center justify-between pb-4 border-b border-border">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-brand text-brand-foreground flex items-center justify-center font-bold text-sm">
-                    <Stethoscope className="w-4 h-4" />
-                  </div>
+                  <MediSyncIcon size={30} />
                   <div>
-                    <h2 className="font-heading font-bold text-sm text-foreground">
-                      CareTrack
+                    <h2 className="font-heading font-bold text-sm">
+                      <span className="text-[#102747] font-bold" style={{ color: '#102747' }}>Medi</span><span className="text-[#1677F2] font-bold">Sync</span>
                     </h2>
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-brand">
                       Doctor Portal

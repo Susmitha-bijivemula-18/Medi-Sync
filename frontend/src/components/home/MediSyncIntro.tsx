@@ -1,6 +1,6 @@
 import { motion, type Variants } from 'framer-motion';
 
-export function CareTrackIntro() {
+export function MediSyncIntro() {
   const steps = [
     { 
       num: '01', 
@@ -70,7 +70,7 @@ export function CareTrackIntro() {
             custom={2} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUpVariant}
             className="text-base sm:text-lg text-foreground/80 max-w-[600px] leading-relaxed"
           >
-            Everything you need for a smoother visit.
+            Everything you need for a smoother visit with MediSync.
           </motion.p>
         </div>
 
@@ -191,3 +191,5 @@ export function CareTrackIntro() {
     </section>
   );
 }
+
+export const CareTrackIntro = MediSyncIntro;

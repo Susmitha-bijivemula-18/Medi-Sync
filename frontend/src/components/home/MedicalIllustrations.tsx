@@ -4,7 +4,7 @@ interface IllustrationProps {
 }
 
 /**
- * Friendly, modern medical illustrations for CareTrack specialties.
+ * Friendly, modern medical illustrations for MediSync specialties.
  * Designed with soft harmonious tones, approachable rounded vectors,
  * and high clarity for elderly patients and everyday users.
  */

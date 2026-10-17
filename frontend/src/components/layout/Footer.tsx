@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
-import { CareTrackLogo } from '../ui/Logo';
+import { MediSyncLogo } from '../ui/Logo';
 
 export function Footer() {
   return (
@@ -14,7 +14,7 @@ export function Footer() {
               Ready for a better care experience?
             </h2>
             <p className="text-base text-foreground/80 leading-relaxed">
-              Book your appointment and stay informed every step of the way.
+              Book your appointment and stay informed every step of the way with MediSync.
             </p>
           </div>
           
@@ -41,15 +41,15 @@ export function Footer() {
           
           {/* BRAND COLUMN */}
           <div className="lg:col-span-4 flex flex-col items-start pr-0 lg:pr-8">
-            <CareTrackLogo className="mb-5 hover:opacity-80 transition-opacity" />
+            <MediSyncLogo className="mb-5 hover:opacity-80 transition-opacity" />
             <p className="text-sm text-foreground/70 leading-relaxed max-w-[280px]">
-              Manage your appointments and follow your queue in one place.
+              Manage your appointments and follow your queue in real time with MediSync.
             </p>
           </div>
           
           {/* LINKS COLUMNS */}
           <div className="lg:col-span-2 lg:col-start-6">
-            <h3 className="text-[11px] font-heading font-semibold uppercase tracking-wider text-foreground mb-4">CareTrack</h3>
+            <h3 className="text-[11px] font-heading font-semibold uppercase tracking-wider text-foreground mb-4">MediSync</h3>
             <ul className="space-y-3 text-sm text-foreground/70 font-medium">
               <li><Link to="/" className="hover:text-foreground transition-colors">About Us</Link></li>
               <li><Link to="/" className="hover:text-foreground transition-colors">Specialties</Link></li>
@@ -82,7 +82,7 @@ export function Footer() {
         <div className="flex flex-col gap-5 pt-8 border-t border-border/60">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <p className="text-[13px] font-medium text-foreground/60">
-              © 2026 CareTrack. All rights reserved.
+              © 2026 MediSync. All rights reserved.
             </p>
             <div className="flex flex-wrap gap-6 text-[13px] text-foreground/60 font-medium">
               <span className="cursor-pointer hover:text-foreground transition-colors">Privacy Policy</span>
@@ -92,7 +92,7 @@ export function Footer() {
           </div>
           
           <p className="text-[11px] text-foreground/40 leading-relaxed font-medium">
-            Disclaimer: CareTrack and associated statistics, reviews, and features are fictional demonstration content created for prototype purposes. Do not submit real medical data.
+            Disclaimer: MediSync and associated statistics, reviews, and features are fictional demonstration content created for prototype purposes. Do not submit real medical data.
           </p>
         </div>
 

@@ -12,7 +12,7 @@ import {
   LogOut 
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { CareTrackLogoCompact } from '../ui/Logo';
+import { MediSyncLogoCompact } from '../ui/Logo';
 
 const navItems = [
   { name: 'Dashboard', path: '/patient/dashboard', icon: LayoutDashboard },
@@ -32,7 +32,7 @@ export function Sidebar() {
   return (
     <aside className="hidden md:flex flex-col w-64 h-screen border-r border-border bg-background">
       <div className="p-6">
-        <CareTrackLogoCompact />
+        <MediSyncLogoCompact />
       </div>
       
       <nav className="flex-1 px-4 space-y-1 overflow-y-auto">

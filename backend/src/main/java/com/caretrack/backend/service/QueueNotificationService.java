@@ -31,7 +31,7 @@ public class QueueNotificationService {
         try {
             emitter.send(SseEmitter.event()
                 .name("connected")
-                .data("{\"status\":\"connected\",\"message\":\"CareTrack Live Queue SSE Connected\"}"));
+                .data("{\"status\":\"connected\",\"message\":\"MediSync Live Queue SSE Connected\"}"));
         } catch (IOException e) {
             emitters.remove(emitter);
         }

@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
-  Stethoscope, 
   Lock, 
   Mail, 
   ArrowLeft, 
@@ -17,6 +16,7 @@ import {
 import { mockDoctors, getMergedDoctors, type ExtendedDoctor } from '../../lib/doctors';
 import { doctorSignIn } from '../../lib/doctorAuth';
 import { DoctorAvatar } from '../../components/common/DoctorAvatar';
+import { MediSyncIcon, MediSyncLogoCompact } from '../../components/ui/Logo';
 
 const specialitiesList = [
   'Cardiology',
@@ -61,10 +61,10 @@ export function DoctorLogin() {
   // Doctor authentication credentials (all required)
   const [name, setName] = useState('Dr. Ananya Rao');
   const [specialization, setSpecialization] = useState('Cardiology');
-  const [email, setEmail] = useState('dr.ananya@caretrack.com');
+  const [email, setEmail] = useState('dr.ananya@medisync.com');
   const [password, setPassword] = useState('');
   
-  const [selectedPresetId, setSelectedPresetId] = useState<string>('1');
+  const [selectedPresetId, setSelectedPresetId] = useState<string>('6b69e7a2-bd9d-4c62-8fa4-10a49eb0f0f7');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -74,7 +74,7 @@ export function DoctorLogin() {
     setName(doc.full_name || '');
     setSpecialization(doc.specialization || '');
     const slug = (doc.full_name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    setEmail(`${slug}@caretrack.com`);
+    setEmail(`${slug}@medisync.com`);
     setError('');
   };
 
@@ -88,7 +88,7 @@ export function DoctorLogin() {
       setSelectedPresetId(matched.id);
       if (matched.specialization) setSpecialization(matched.specialization);
       const slug = (matched.full_name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-      setEmail(`${slug}@caretrack.com`);
+      setEmail(`${slug}@medisync.com`);
     }
   };
 
@@ -136,13 +136,21 @@ export function DoctorLogin() {
       
       {/* Top Header */}
       <header className="px-6 py-4 border-b border-border bg-card/60 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to Patient Website</span>
-        </Link>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <span>Secure Clinical Portal · Verified Physician Access</span>
+        <div className="flex items-center gap-3">
+          <MediSyncLogoCompact size="sm" />
+          <span className="hidden sm:inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-brand/10 text-brand border border-brand/20">
+            Doctor Portal
+          </span>
+        </div>
+        <div className="flex items-center gap-4">
+          <Link to="/" className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Back to Patient Website</span>
+          </Link>
+          <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground pl-3 border-l border-border">
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <span>Verified Physician Access</span>
+          </div>
         </div>
       </header>
 
@@ -155,8 +163,8 @@ export function DoctorLogin() {
         >
           {/* Header */}
           <div className="text-center">
-            <div className="w-12 h-12 rounded-xl bg-brand/10 text-brand flex items-center justify-center mx-auto mb-3">
-              <Stethoscope className="w-6 h-6" />
+            <div className="flex items-center justify-center mx-auto mb-3">
+              <MediSyncIcon size={44} />
             </div>
             <h1 className="text-2xl font-heading font-bold tracking-tight text-foreground">
               Doctor Portal Access
@@ -291,7 +299,7 @@ export function DoctorLogin() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="dr.ananya@caretrack.com"
+                  placeholder="dr.ananya@medisync.com"
                   required
                   className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-border bg-background text-xs sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-brand"
                 />
@@ -339,7 +347,7 @@ export function DoctorLogin() {
 
       {/* Footer Disclaimer */}
       <footer className="py-4 px-6 border-t border-border/60 text-center text-[11px] text-muted-foreground">
-        CareTrack Hospital Management System · Protected Health Information (PHI) Secure Zone
+        MediSync Hospital Management System · Protected Health Information (PHI) Secure Zone
       </footer>
     </div>
   );

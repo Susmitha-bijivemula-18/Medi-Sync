@@ -11,8 +11,8 @@
 	<groupId>com.caretrack</groupId>
 	<artifactId>backend</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
-	<description/>
+	<name>MediSync Backend</name>
+	<description>MediSync Healthcare Appointment &amp; Live Queue Management System</description>
 	<url/>
 	<licenses>
 		<license/>

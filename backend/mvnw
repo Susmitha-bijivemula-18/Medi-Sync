@@ -43,6 +43,13 @@ esac
 
 # set JAVACMD and JAVACCMD
 set_java_home() {
+  if [ -z "${JAVA_HOME-}" ] || [ ! -e "$JAVA_HOME" ]; then
+    if [ -d "/c/Program Files/Eclipse Adoptium/jdk-17.0.19.10-hotspot" ]; then
+      JAVA_HOME="/c/Program Files/Eclipse Adoptium/jdk-17.0.19.10-hotspot"
+    elif [ -d "C:/Program Files/Eclipse Adoptium/jdk-17.0.19.10-hotspot" ]; then
+      JAVA_HOME="C:/Program Files/Eclipse Adoptium/jdk-17.0.19.10-hotspot"
+    fi
+  fi
   # For Cygwin and MinGW, ensure paths are in Unix format before anything is touched
   if [ -n "${JAVA_HOME-}" ]; then
     if [ -x "$JAVA_HOME/jre/sh/java" ]; then

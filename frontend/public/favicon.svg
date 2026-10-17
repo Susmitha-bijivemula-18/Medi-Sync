@@ -1,8 +1,36 @@
-<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Outer C shape representing Care, Shield, and Track -->
-  <path d="M 21 8 A 10 10 0 1 0 21 24" stroke="#171717" stroke-width="3" stroke-linecap="round" />
-  <!-- The moving tracking line/arrow -->
-  <path d="M 9 16 L 26 16" stroke="#171717" stroke-width="3" stroke-linecap="round" />
-  <!-- The patient/node making progress -->
-  <circle cx="26" cy="16" r="3.5" fill="#2563EB" />
+<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="fav-cross-grad" x1="4" y1="4" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#22B8E6" />
+      <stop offset="45%" stop-color="#1677F2" />
+      <stop offset="100%" stop-color="#102747" />
+    </linearGradient>
+    <linearGradient id="fav-accent" x1="14" y1="4" x2="36" y2="20" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#22B8E6" />
+      <stop offset="100%" stop-color="#1677F2" />
+    </linearGradient>
+  </defs>
+
+  <!-- 4 Rounded Blue Shapes of Medical Cross -->
+  <!-- Top Lobe -->
+  <rect x="14" y="3" width="12" height="16" rx="6" fill="url(#fav-accent)" />
+  <!-- Bottom Lobe -->
+  <rect x="14" y="21" width="12" height="16" rx="6" fill="url(#fav-cross-grad)" />
+  <!-- Left Lobe -->
+  <rect x="3" y="14" width="16" height="12" rx="6" fill="url(#fav-cross-grad)" />
+  <!-- Right Lobe -->
+  <rect x="21" y="14" width="16" height="12" rx="6" fill="url(#fav-accent)" />
+  <!-- Center Nexus -->
+  <rect x="13.5" y="13.5" width="13" height="13" rx="3" fill="#1677F2" />
+
+  <!-- Flowing White S-Shaped Curve Through Center -->
+  <path
+    d="M 26 10 C 18.5 9 13.5 15.5 19.5 20 C 25.5 24.5 21.5 31 14 30"
+    stroke="#FFFFFF"
+    stroke-width="3.6"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <circle cx="26" cy="10" r="1.6" fill="#22B8E6" />
+  <circle cx="14" cy="30" r="1.6" fill="#FFFFFF" />
 </svg>

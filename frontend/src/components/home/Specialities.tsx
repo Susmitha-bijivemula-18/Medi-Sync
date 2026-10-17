@@ -179,7 +179,7 @@ export function Specialities() {
   return (
     <section 
       id="specialities" 
-      aria-label="CareTrack Medical Specialities"
+      aria-label="MediSync Medical Specialities"
       className="relative py-16 md:py-20 px-6 sm:px-8 md:px-12 lg:px-20 bg-background text-foreground border-y border-border transition-colors duration-300"
     >
       <div className="w-full max-w-[80rem] mx-auto">

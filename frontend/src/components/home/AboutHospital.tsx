@@ -30,7 +30,7 @@ export function AboutHospital() {
             >
               <div className="w-1.5 h-1.5 rounded-full bg-brand"></div>
               <span className="text-xs font-semibold uppercase tracking-wider text-brand transition-colors duration-500">
-                Why CareTrack
+                Why MediSync
               </span>
             </motion.div>
             
@@ -72,13 +72,13 @@ export function AboutHospital() {
                </div>
             </motion.div>
 
-            {/* The CareTrack Way */}
+            {/* The MediSync Way */}
             <motion.div 
               custom={4} initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-50px" }} variants={fadeUpVariant}
               className="flex flex-col p-6 sm:p-8 rounded-2xl bg-card border border-border shadow-sm relative overflow-hidden"
             >
                <div className="absolute top-0 left-0 w-full h-1 bg-brand" />
-               <span className="text-xs font-semibold uppercase tracking-wider text-brand mb-6 block">With CareTrack</span>
+               <span className="text-xs font-semibold uppercase tracking-wider text-brand mb-6 block">With MediSync</span>
                
                <div className="flex flex-row gap-10 sm:gap-16 mb-8">
                   <div className="flex flex-col">

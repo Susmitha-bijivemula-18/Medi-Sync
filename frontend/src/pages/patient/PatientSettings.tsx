@@ -61,7 +61,7 @@ export function PatientSettings() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `caretrack_medical_export_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `medisync_medical_export_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -95,7 +95,7 @@ export function PatientSettings() {
           Display Appearance & Theme
         </h3>
         <p className="text-xs text-muted-foreground -mt-4">
-          Choose how CareTrack looks on your display.
+          Choose how MediSync looks on your display.
         </p>
 
         <div className="grid grid-cols-2 gap-4 max-w-md">

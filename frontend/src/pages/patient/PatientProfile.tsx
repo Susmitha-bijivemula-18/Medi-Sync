@@ -81,6 +81,7 @@ export function PatientProfile() {
       location: profile.address,
     };
     localStorage.setItem('user', JSON.stringify(updatedUser));
+    window.dispatchEvent(new Event('medisync:user-updated'));
     window.dispatchEvent(new Event('caretrack:user-updated'));
 
     setSavedSuccess(true);

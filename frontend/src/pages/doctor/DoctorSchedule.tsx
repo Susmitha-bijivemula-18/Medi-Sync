@@ -23,7 +23,7 @@ const ALL_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satur
 export function DoctorSchedule() {
   const session = getCurrentDoctor();
   const doctor = session?.doctor;
-  const doctorId = doctor?.id || '1';
+  const doctorId = doctor?.id || '6b69e7a2-bd9d-4c62-8fa4-10a49eb0f0f7';
 
   const [settings, setSettings] = useState<DoctorScheduleSettings>(() => 
     getDoctorScheduleSettings(doctorId)
@@ -34,8 +34,12 @@ export function DoctorSchedule() {
 
   useEffect(() => {
     const refresh = () => setSettings(getDoctorScheduleSettings(doctorId));
+    window.addEventListener('medisync:queue-update', refresh);
     window.addEventListener('caretrack:queue-update', refresh);
-    return () => window.removeEventListener('caretrack:queue-update', refresh);
+    return () => {
+      window.removeEventListener('medisync:queue-update', refresh);
+      window.removeEventListener('caretrack:queue-update', refresh);
+    };
   }, [doctorId]);
 
   if (!doctor) return null;

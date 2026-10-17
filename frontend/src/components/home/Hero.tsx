@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ArrowUpRight, Check } from 'lucide-react';
-import { CareTrackIcon, CareTrackLogoCompact } from '../ui/Logo';
+import { MediSyncIcon, MediSyncLogoCompact } from '../ui/Logo';
 
 export function Hero() {
   const containerRef = useRef<HTMLElement>(null);
@@ -23,16 +23,16 @@ export function Hero() {
           {/* LEFT: Copy (45%) */}
           <motion.div style={{ y: yText }} className="flex flex-col items-start relative z-10 h-full justify-center py-4 lg:py-8">
             <div className="mb-6 pointer-events-none">
-              <CareTrackLogoCompact iconClassName="w-6 h-6 md:w-6 md:h-6 text-foreground" className="gap-2" />
+              <MediSyncLogoCompact iconClassName="w-6 h-6 md:w-6 md:h-6 text-foreground" className="gap-2" />
             </div>
             
             <h1 className="text-[3rem] sm:text-5xl md:text-[4.5rem] lg:text-[5rem] font-semibold tracking-tight text-foreground leading-[1.05] mb-6 transition-colors duration-500">
-              Healthcare <br className="hidden sm:block" />
-              <span className="text-muted-foreground">without the waiting.</span>
+              Healthcare, <br className="hidden sm:block" />
+              <span className="text-muted-foreground">made simpler.</span>
             </h1>
 
-            <p className="text-base md:text-lg text-muted-foreground max-w-[420px] leading-relaxed mb-8 transition-colors duration-500">
-              Find a doctor, book your appointment, and know when it's your turn.
+            <p className="text-base md:text-lg text-muted-foreground max-w-[480px] leading-relaxed mb-8 transition-colors duration-500">
+              Find doctors, book appointments, and track your turn in real time—all in one place.
             </p>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-5 mb-10 w-full sm:w-auto">
@@ -98,8 +98,10 @@ function QueueJourney() {
       <div className="absolute top-0 left-0 right-0 flex justify-between items-center pt-6 px-6 lg:px-8 z-20">
         <div className="flex flex-col">
           <div className="flex items-center gap-1.5">
-            <CareTrackIcon className="w-3.5 h-3.5 text-foreground" />
-            <div className="text-xs font-semibold text-foreground tracking-tight transition-colors duration-500">CareTrack</div>
+            <MediSyncIcon className="w-3.5 h-3.5 text-foreground" />
+            <div className="text-xs font-semibold tracking-tight transition-colors duration-500">
+              <span className="text-[#102747] font-bold" style={{ color: '#102747' }}>Medi</span><span className="text-[#1677F2] font-bold">Sync</span>
+            </div>
           </div>
           <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-medium transition-colors duration-500 mt-0.5">Live Journey</div>
         </div>

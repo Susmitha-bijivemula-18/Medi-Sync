@@ -21,8 +21,8 @@ import {
 export function DoctorQueue() {
   const session = getCurrentDoctor();
   const doctor = session?.doctor;
-  const doctorId = doctor?.id || '1';
-  const doctorName = doctor?.full_name || '';
+  const doctorId = doctor?.id || '6b69e7a2-bd9d-4c62-8fa4-10a49eb0f0f7';
+  const doctorName = doctor?.full_name || 'Dr. Ananya Rao';
 
   const [queueData, setQueueData] = useState(() => getLiveQueueForDoctor(doctorId, doctorName));
   const [schedule, setSchedule] = useState(() => getDoctorScheduleSettings(doctorId));
@@ -47,8 +47,12 @@ export function DoctorQueue() {
       setQueueData(getLiveQueueForDoctor(doctorId, doctorName));
       setSchedule(getDoctorScheduleSettings(doctorId));
     };
+    window.addEventListener('medisync:queue-update', refresh);
     window.addEventListener('caretrack:queue-update', refresh);
-    return () => window.removeEventListener('caretrack:queue-update', refresh);
+    return () => {
+      window.removeEventListener('medisync:queue-update', refresh);
+      window.removeEventListener('caretrack:queue-update', refresh);
+    };
   }, [doctorId, doctorName]);
 
   if (!doctor) return null;

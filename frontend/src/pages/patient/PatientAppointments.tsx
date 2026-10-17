@@ -29,8 +29,12 @@ export function PatientAppointments() {
   useEffect(() => {
     initQueueSync();
     const refresh = () => setAppointments(loadAllAppointments());
+    window.addEventListener('medisync:queue-update', refresh);
     window.addEventListener('caretrack:queue-update', refresh);
-    return () => window.removeEventListener('caretrack:queue-update', refresh);
+    return () => {
+      window.removeEventListener('medisync:queue-update', refresh);
+      window.removeEventListener('caretrack:queue-update', refresh);
+    };
   }, []);
 
   const filteredAppointments = useMemo(() => {

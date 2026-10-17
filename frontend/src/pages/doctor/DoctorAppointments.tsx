@@ -1,32 +1,38 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, X, Compass } from 'lucide-react';
 import { getCurrentDoctor } from '../../lib/doctorAuth';
 import { 
   getAppointmentsForDoctor, 
   getTodayDateString, 
   completeConsultation,
   cancelAppointment,
-  initQueueSync,
+  initQueueSync, 
   type QueueAppointment 
 } from '../../lib/queueStore';
+import { HospitalMapModal } from '../../components/common/HospitalMapModal';
 
 export function DoctorAppointments() {
   const session = getCurrentDoctor();
   const doctor = session?.doctor;
-  const doctorId = doctor?.id || '1';
-  const doctorName = doctor?.full_name || '';
+  const doctorId = doctor?.id || '6b69e7a2-bd9d-4c62-8fa4-10a49eb0f0f7';
+  const doctorName = doctor?.full_name || 'Dr. Ananya Rao';
 
   const [appointments, setAppointments] = useState<QueueAppointment[]>(() => getAppointmentsForDoctor(doctorId, doctorName));
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all'); // 'all', 'today', 'upcoming'
   const [selectedAppt, setSelectedAppt] = useState<QueueAppointment | null>(null);
+  const [isMapOpen, setIsMapOpen] = useState(false);
 
   useEffect(() => {
     initQueueSync(doctorId);
     const refresh = () => setAppointments(getAppointmentsForDoctor(doctorId, doctorName));
+    window.addEventListener('medisync:queue-update', refresh);
     window.addEventListener('caretrack:queue-update', refresh);
-    return () => window.removeEventListener('caretrack:queue-update', refresh);
+    return () => {
+      window.removeEventListener('medisync:queue-update', refresh);
+      window.removeEventListener('caretrack:queue-update', refresh);
+    };
   }, [doctorId, doctorName]);
 
   const todayStr = getTodayDateString();
@@ -85,6 +91,17 @@ export function DoctorAppointments() {
           <p className="text-xs text-muted-foreground mt-0.5">
             Total {appointments.length} appointment records for Department of {doctor.specialization}
           </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsMapOpen(true)}
+            className="px-4 py-2.5 rounded-lg border border-border bg-card hover:bg-secondary text-foreground text-xs font-semibold flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
+          >
+            <Compass className="w-4 h-4 text-brand" />
+            <span>Hospital Map</span>
+          </button>
         </div>
       </div>
 
@@ -168,8 +185,14 @@ export function DoctorAppointments() {
             <tbody className="divide-y divide-border/60">
               {filtered.map((item) => (
                 <tr key={item.id} className="hover:bg-secondary/30 transition-colors">
-                  <td className="py-3.5 px-4 font-mono font-bold text-brand">
-                    {item.tokenNumber}
+                  <td className="py-3.5 px-4 font-mono font-bold">
+                    {item.appointmentDate === todayStr && item.tokenNumber ? (
+                      <span className="text-brand font-bold">{item.tokenNumber}</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-secondary/80 text-[11px] font-semibold text-muted-foreground border border-border/60">
+                        Click clinic on that day
+                      </span>
+                    )}
                   </td>
                   <td className="py-3.5 px-4 font-semibold text-foreground">
                     {item.patientName}
@@ -196,7 +219,9 @@ export function DoctorAppointments() {
                   <td className="py-3.5 px-4">
                     <span
                       className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        item.status === 'in-consultation'
+                        item.appointmentDate !== todayStr && (item.status === 'in-consultation' || item.status === 'waiting')
+                          ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300'
+                          : item.status === 'in-consultation'
                           ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                           : item.status === 'waiting'
                           ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
@@ -205,7 +230,9 @@ export function DoctorAppointments() {
                           : 'bg-destructive/10 text-destructive'
                       }`}
                     >
-                      {item.status}
+                      {item.appointmentDate !== todayStr && (item.status === 'in-consultation' || item.status === 'waiting')
+                        ? 'Scheduled'
+                        : item.status}
                     </span>
                   </td>
                   <td className="py-3.5 px-4 text-right">
@@ -306,6 +333,14 @@ export function DoctorAppointments() {
           </div>
         </div>
       )}
+
+      {/* Hospital Floor & Room Directory Modal */}
+      <HospitalMapModal
+        isOpen={isMapOpen}
+        onClose={() => setIsMapOpen(false)}
+        targetDepartment={doctor.specialization}
+        targetDoctorName={doctor.full_name}
+      />
 
     </div>
   );

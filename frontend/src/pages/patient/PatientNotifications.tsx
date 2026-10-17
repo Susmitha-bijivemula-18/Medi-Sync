@@ -37,7 +37,7 @@ export function PatientNotifications() {
       return [
         {
           id: 'welcome-notif',
-          title: 'Welcome to CareTrack Live Queue',
+          title: 'Welcome to MediSync Live Queue',
           message: 'Book your outpatient doctor consultation to receive live token updates and estimated wait alerts.',
           timestamp: 'Just now',
           type: 'schedule',

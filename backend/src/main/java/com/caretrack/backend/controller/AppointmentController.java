@@ -162,14 +162,53 @@ public class AppointmentController {
             );
         }
 
-        // Generate unique token number (e.g. A-28)
-        char prefix = (char) ('A' + (Math.abs(doctor.getFullName().hashCode()) % 26));
-        long countToday = existingBookings.size() + 1;
-        String tokenNumber = String.format("%c-%02d", prefix, countToday);
-        appointment.setTokenNumber(tokenNumber);
+        LocalDate today = LocalDate.now();
+        if (appointment.getAppointmentDate().isBefore(today)) {
+            return ResponseEntity.badRequest().body(
+                Map.of("message", "Cannot book an appointment for a past date.")
+            );
+        }
 
-        appointment.setStatus("waiting");
-        appointment.setQueueStatus("waiting");
+        // Validate that time slot for today is not in the past
+        if (appointment.getAppointmentDate().isEqual(today)) {
+            try {
+                DateTimeFormatter timeCheckFormatter = DateTimeFormatter.ofPattern("hh:mm a", Locale.ENGLISH);
+                LocalTime slotTime = LocalTime.parse(appointment.getAppointmentTime().trim().toUpperCase(), timeCheckFormatter);
+                if (slotTime.isBefore(LocalTime.now())) {
+                    return ResponseEntity.badRequest().body(
+                        Map.of("message", "The selected time slot has already passed for today. Please select an upcoming slot.")
+                    );
+                }
+            } catch (Exception ignored) {}
+        }
+
+        // Generate token only if appointment date is TODAY
+        boolean isToday = appointment.getAppointmentDate().isEqual(today);
+
+        String tokenNumber = "";
+        String status = "scheduled";
+        String queueStatus = "scheduled";
+
+        if (isToday) {
+            if (payload.get("tokenNumber") != null && !payload.get("tokenNumber").toString().isBlank()) {
+                tokenNumber = payload.get("tokenNumber").toString().trim();
+            } else if (payload.get("token_number") != null && !payload.get("token_number").toString().isBlank()) {
+                tokenNumber = payload.get("token_number").toString().trim();
+            } else {
+                String cleanName = doctor.getFullName().replaceFirst("(?i)^Dr\\.?\\s*", "").trim();
+                char prefix = Character.toUpperCase(cleanName.isEmpty() ? 'A' : cleanName.charAt(0));
+                long countToday = existingBookings.stream()
+                    .filter(a -> a.getTokenNumber() != null && !a.getTokenNumber().isBlank())
+                    .count() + 1;
+                tokenNumber = String.format("%c-%02d", prefix, countToday);
+            }
+            status = "waiting";
+            queueStatus = "waiting";
+        }
+
+        appointment.setTokenNumber(tokenNumber);
+        appointment.setStatus(status);
+        appointment.setQueueStatus(queueStatus);
 
         Appointment saved = appointmentRepository.save(appointment);
 
@@ -178,7 +217,7 @@ public class AppointmentController {
             "action", "NEW_BOOKING",
             "doctorId", doctor.getId().toString(),
             "appointmentId", saved.getId().toString(),
-            "tokenNumber", saved.getTokenNumber(),
+            "tokenNumber", saved.getTokenNumber() != null ? saved.getTokenNumber() : "",
             "patientName", saved.getPatientName()
         ));
 
@@ -217,6 +256,7 @@ public class AppointmentController {
             ));
         }
 
+        // Live Queue ONLY serves today's appointments
         LocalDate today = LocalDate.now();
         List<Appointment> allToday = appointmentRepository.findByDoctorIdAndAppointmentDateOrderByCreatedAtAsc(docUuid, today);
 
@@ -299,6 +339,42 @@ public class AppointmentController {
         ));
     }
 
+    // ─── 4b. Patient Check-In / Token Generation On Clinic Day ──────────────
+
+    @PostMapping("/appointments/{id}/check-in")
+    public ResponseEntity<?> checkInAppointment(@PathVariable UUID id) {
+        Optional<Appointment> apptOpt = appointmentRepository.findById(id);
+        if (apptOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Appointment not found"));
+        }
+
+        Appointment appt = apptOpt.get();
+        Doctor doc = appt.getDoctor();
+
+        if (appt.getTokenNumber() == null || appt.getTokenNumber().isBlank()) {
+            String cleanName = doc != null ? doc.getFullName().replaceFirst("(?i)^Dr\\.?\\s*", "").trim() : "Doc";
+            char prefix = Character.toUpperCase(cleanName.isEmpty() ? 'A' : cleanName.charAt(0));
+            List<Appointment> todayBookings = appointmentRepository
+                .findByDoctorIdAndAppointmentDateOrderByCreatedAtAsc(doc.getId(), appt.getAppointmentDate());
+            long count = todayBookings.stream().filter(a -> a.getTokenNumber() != null && !a.getTokenNumber().isBlank()).count() + 1;
+            appt.setTokenNumber(String.format("%c-%02d", prefix, count));
+        }
+
+        appt.setStatus("waiting");
+        appt.setQueueStatus("waiting");
+        Appointment saved = appointmentRepository.save(appt);
+
+        queueNotificationService.broadcastQueueUpdate("queue-update", Map.of(
+            "action", "CHECK_IN",
+            "doctorId", saved.getDoctor().getId().toString(),
+            "appointmentId", saved.getId().toString(),
+            "tokenNumber", saved.getTokenNumber(),
+            "patientName", saved.getPatientName()
+        ));
+
+        return ResponseEntity.ok(saved);
+    }
+
     // ─── 5. Update Appointment Status (Complete, Skip, Reschedule, Notes, Rx) ─
 
     @PatchMapping("/appointments/{id}/status")
@@ -321,6 +397,10 @@ public class AppointmentController {
             if ("completed".equalsIgnoreCase(newStatus)) {
                 appt.setCompletedAt(LocalTime.now().format(DateTimeFormatter.ofPattern("hh:mm a")).toUpperCase());
             }
+        }
+
+        if (payload.containsKey("tokenNumber")) {
+            appt.setTokenNumber((String) payload.get("tokenNumber"));
         }
 
         if (payload.containsKey("clinicalNotes")) {
@@ -408,15 +488,23 @@ public class AppointmentController {
         List<Map<String, Object>> slots = new ArrayList<>();
         DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("hh:mm a");
 
+        LocalDate today = LocalDate.now();
+        LocalTime nowTime = LocalTime.now();
+
         LocalTime current = start;
         while (!current.plusMinutes(duration).isAfter(end)) {
             // Skip break time
             if (!(current.isBefore(breakEnd) && current.plusMinutes(duration).isAfter(breakStart))) {
                 String formatted = current.format(timeFormatter).toUpperCase();
                 boolean isBooked = bookedTimes.contains(formatted);
+                boolean isPast = targetDate.isBefore(today) || (targetDate.isEqual(today) && current.isBefore(nowTime));
+                boolean isAvailable = !isBooked && !isPast;
+
                 slots.add(Map.of(
                     "time", formatted,
-                    "available", !isBooked
+                    "available", isAvailable,
+                    "isPast", isPast,
+                    "isBooked", isBooked
                 ));
             }
             current = current.plusMinutes(duration);
@@ -432,21 +520,27 @@ public class AppointmentController {
             @RequestParam(name = "token", required = false) String token,
             @RequestParam(name = "doctorId", required = false) String doctorIdStr) {
 
-        UUID doctorId = resolveDoctorId(doctorIdStr);
+        UUID doctorId = null;
+        if (doctorIdStr != null && !doctorIdStr.isBlank()) {
+            doctorId = resolveDoctorId(doctorIdStr);
+        }
 
         Appointment userAppt = null;
         if (token != null && !token.isBlank()) {
-            userAppt = appointmentRepository.findByTokenNumber(token).orElse(null);
-            if (userAppt != null && doctorId == null) {
+            String cleanToken = token.trim();
+            userAppt = appointmentRepository.findByTokenNumber(cleanToken)
+                .or(() -> appointmentRepository.findAll().stream()
+                    .filter(a -> a.getTokenNumber() != null && a.getTokenNumber().trim().equalsIgnoreCase(cleanToken))
+                    .findFirst())
+                .orElse(null);
+
+            if (userAppt != null && doctorId == null && userAppt.getDoctor() != null) {
                 doctorId = userAppt.getDoctor().getId();
             }
         }
 
         if (doctorId == null) {
-            List<Doctor> docs = doctorRepository.findAll();
-            if (!docs.isEmpty()) {
-                doctorId = docs.get(0).getId();
-            }
+            doctorId = resolveDoctorId(null);
         }
 
         if (doctorId == null) {
@@ -458,8 +552,10 @@ public class AppointmentController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Doctor not found"));
         }
 
-        LocalDate today = LocalDate.now();
-        List<Appointment> todayAppts = appointmentRepository.findByDoctorIdAndAppointmentDateOrderByCreatedAtAsc(doctorId, today);
+        LocalDate targetDate = (userAppt != null && userAppt.getAppointmentDate() != null)
+            ? userAppt.getAppointmentDate()
+            : LocalDate.now();
+        List<Appointment> todayAppts = appointmentRepository.findByDoctorIdAndAppointmentDateOrderByCreatedAtAsc(doctorId, targetDate);
 
         Appointment currentServing = todayAppts.stream()
             .filter(a -> "in-consultation".equalsIgnoreCase(a.getStatus()))
@@ -488,16 +584,20 @@ public class AppointmentController {
         int slotDuration = doctor.getSlotDuration() != null ? doctor.getSlotDuration() : 15;
         int estimatedWait = Math.max(5, (patientsAhead + (currentServing != null ? 1 : 0)) * slotDuration);
 
+        boolean isCurrentTurn = userAppt != null && "in-consultation".equalsIgnoreCase(userAppt.getStatus());
+        String currentToken = currentServing != null ? currentServing.getTokenNumber() : "--";
+        String userToken = userAppt != null ? userAppt.getTokenNumber() : (token != null ? token : "--");
+
         return ResponseEntity.ok(Map.of(
-            "currentToken", currentServing != null ? currentServing.getTokenNumber() : (waitingList.isEmpty() ? "--" : waitingList.get(0).getTokenNumber()),
-            "userToken", userAppt != null ? userAppt.getTokenNumber() : (token != null ? token : "A-23"),
+            "currentToken", currentToken,
+            "userToken", userToken,
             "doctorName", doctor.getFullName(),
             "specialty", doctor.getSpecialization(),
-            "patientsAhead", patientsAhead,
-            "estimatedWait", estimatedWait,
-            "clinicStatus", doctor.getStatusMessage() != null ? doctor.getStatusMessage() : "In Clinic",
+            "patientsAhead", isCurrentTurn ? 0 : patientsAhead,
+            "estimatedWait", isCurrentTurn ? 0 : estimatedWait,
+            "clinicStatus", doctor.getStatusMessage() != null ? doctor.getStatusMessage() : (currentServing != null ? "In Consultation" : "In Clinic"),
             "appointmentStatus", userAppt != null ? userAppt.getStatus() : "waiting",
-            "isCurrentTurn", userAppt != null && "in-consultation".equalsIgnoreCase(userAppt.getStatus())
+            "isCurrentTurn", isCurrentTurn
         ));
     }
 
@@ -507,5 +607,37 @@ public class AppointmentController {
     public ResponseEntity<?> getPatientAppointments(@PathVariable String query) {
         List<Appointment> list = appointmentRepository.findByPatientPhoneOrPatientEmailOrderByCreatedAtDesc(query, query);
         return ResponseEntity.ok(list);
+    }
+
+    // ─── 9. Delete Appointment & Purge Dummy Data ────────────────────────────
+
+    @DeleteMapping("/appointments/{id}")
+    public ResponseEntity<?> deleteAppointment(@PathVariable UUID id) {
+        if (appointmentRepository.existsById(id)) {
+            appointmentRepository.deleteById(id);
+            queueNotificationService.broadcastQueueUpdate("queue-update", Map.of(
+                "action", "APPOINTMENT_DELETED",
+                "appointmentId", id.toString()
+            ));
+            return ResponseEntity.ok(Map.of("success", true, "message", "Appointment deleted"));
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @DeleteMapping("/appointments/dummy")
+    public ResponseEntity<?> purgeDummyAppointments() {
+        List<Appointment> all = appointmentRepository.findAll();
+        List<Appointment> toDelete = all.stream().filter(a -> 
+            a.getPatientName() == null || 
+            a.getPatientName().equalsIgnoreCase("Test Patient") ||
+            a.getPatientName().equalsIgnoreCase("Ramesh Verma") ||
+            (a.getPatientEmail() != null && a.getPatientEmail().contains("test@example.com"))
+        ).toList();
+        appointmentRepository.deleteAll(toDelete);
+        queueNotificationService.broadcastQueueUpdate("queue-update", Map.of(
+            "action", "PURGE_DUMMY",
+            "deletedCount", toDelete.size()
+        ));
+        return ResponseEntity.ok(Map.of("success", true, "deletedCount", toDelete.size()));
     }
 }

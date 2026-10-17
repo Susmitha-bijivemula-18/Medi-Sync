@@ -24,8 +24,8 @@ import {
 export function DoctorPatients() {
   const session = getCurrentDoctor();
   const doctor = session?.doctor;
-  const doctorId = doctor?.id || '1';
-  const doctorName = doctor?.full_name || '';
+  const doctorId = doctor?.id || '6b69e7a2-bd9d-4c62-8fa4-10a49eb0f0f7';
+  const doctorName = doctor?.full_name || 'Dr. Ananya Rao';
 
   const [appointments, setAppointments] = useState<QueueAppointment[]>(() => 
     getAppointmentsForDoctor(doctorId, doctorName)
@@ -41,8 +41,12 @@ export function DoctorPatients() {
   useEffect(() => {
     initQueueSync(doctorId);
     const refresh = () => setAppointments(getAppointmentsForDoctor(doctorId, doctorName));
+    window.addEventListener('medisync:queue-update', refresh);
     window.addEventListener('caretrack:queue-update', refresh);
-    return () => window.removeEventListener('caretrack:queue-update', refresh);
+    return () => {
+      window.removeEventListener('medisync:queue-update', refresh);
+      window.removeEventListener('caretrack:queue-update', refresh);
+    };
   }, [doctorId, doctorName]);
 
   // Group appointments by unique patient (using patientPhone or patientEmail as identity key)

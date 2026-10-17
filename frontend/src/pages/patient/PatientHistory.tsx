@@ -18,8 +18,12 @@ export function PatientHistory() {
   useEffect(() => {
     initQueueSync();
     const refresh = () => setAppointments(loadAllAppointments());
+    window.addEventListener('medisync:queue-update', refresh);
     window.addEventListener('caretrack:queue-update', refresh);
-    return () => window.removeEventListener('caretrack:queue-update', refresh);
+    return () => {
+      window.removeEventListener('medisync:queue-update', refresh);
+      window.removeEventListener('caretrack:queue-update', refresh);
+    };
   }, []);
 
   const latestWithVitals = appointments.find((a) => a.vitals?.bp) || appointments[0];
@@ -132,7 +136,7 @@ export function PatientHistory() {
             </div>
             <h3 className="text-base font-semibold text-foreground">No Consultation History Yet</h3>
             <p className="text-xs text-muted-foreground max-w-sm mx-auto mt-1 mb-5">
-              Once you book consultations with CareTrack specialists, your timelines, diagnoses, and vitals will automatically appear here.
+              Once you book consultations with MediSync specialists, your timelines, diagnoses, and vitals will automatically appear here.
             </p>
             <button
               onClick={() => navigate('/book-appointment')}

@@ -4,7 +4,7 @@ import { Hero } from '../components/home/Hero';
 
 import { AboutHospital } from '../components/home/AboutHospital';
 import { Specialities } from '../components/home/Specialities';
-import { CareTrackIntro } from '../components/home/CareTrackIntro';
+import { MediSyncIntro } from '../components/home/MediSyncIntro';
 import { QueueShowcase } from '../components/home/QueueShowcase';
 
 export function Home() {
@@ -16,7 +16,7 @@ export function Home() {
 
         <AboutHospital />
         <Specialities />
-        <CareTrackIntro />
+        <MediSyncIntro />
         <QueueShowcase />
       </main>
       <Footer />

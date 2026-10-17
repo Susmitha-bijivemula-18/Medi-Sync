@@ -15,14 +15,17 @@ export function getCurrentDoctor(): DoctorSession | null {
     if (!raw) return null;
     const session = JSON.parse(raw);
 
-    // Auto-heal session ID if physician name doesn't match default id '1'
+    // Ensure physician metadata (avatar, qualification) is up to date while preserving real ID
     if (session?.doctor?.full_name) {
       const cleanName = session.doctor.full_name.replace(/^Dr\.?\s*/i, '').trim().toLowerCase();
       const actualDoc = mockDoctors.find(
         (m) => (m.full_name || '').replace(/^Dr\.?\s*/i, '').trim().toLowerCase() === cleanName
       );
-      if (actualDoc && session.doctor.id !== actualDoc.id && cleanName !== 'ananya rao') {
-        session.doctor.id = actualDoc.id;
+      if (actualDoc) {
+        // If current session has legacy mock id ('1', '2' etc.) and actualDoc has genuine UUID, upgrade to UUID
+        if (session.doctor.id.length < 5 && actualDoc.id.length > 10) {
+          session.doctor.id = actualDoc.id;
+        }
         session.doctor.avatar = session.doctor.avatar || actualDoc.avatar;
         session.doctor.qualification = session.doctor.qualification || actualDoc.qualification;
         session.doctor.specialization = session.doctor.specialization || actualDoc.specialization;
@@ -110,6 +113,7 @@ export async function doctorSignIn(params: {
   };
 
   localStorage.setItem(DOCTOR_SESSION_KEY, JSON.stringify(session));
+  window.dispatchEvent(new Event('medisync:doctor-auth'));
   window.dispatchEvent(new Event('caretrack:doctor-auth'));
 
   return session;
@@ -117,5 +121,6 @@ export async function doctorSignIn(params: {
 
 export function doctorSignOut(): void {
   localStorage.removeItem(DOCTOR_SESSION_KEY);
+  window.dispatchEvent(new Event('medisync:doctor-auth'));
   window.dispatchEvent(new Event('caretrack:doctor-auth'));
 }

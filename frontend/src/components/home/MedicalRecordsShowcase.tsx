@@ -28,7 +28,7 @@ export function MedicalRecordsShowcase() {
         <div className="order-1 lg:order-2">
           <h2 className="text-3xl md:text-5xl font-bold tracking-tighter mb-6">Your healthcare history, in one place.</h2>
           <p className="text-lg text-muted-foreground max-w-md leading-relaxed">
-            Keep your prescriptions, lab reports, and consultation records securely organized. CareTrack ensures your medical history is always accessible for your next visit.
+            Keep your prescriptions, lab reports, and consultation records securely organized. MediSync ensures your medical history is always accessible for your next visit.
           </p>
         </div>
       </div>

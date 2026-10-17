@@ -4,16 +4,49 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Star,
   CheckCircle, ArrowRight, AlertCircle, Clock,
-  User, Calendar, MapPin, Droplet, Phone, Mail, FileText
+  User, Calendar, MapPin, Droplet, Phone, Mail, FileText, Compass
 } from 'lucide-react';
 import { fetchDoctorById, createAppointment, fetchAvailableSlots, getCurrentUser } from '../lib/supabase';
 import { mockDoctors } from '../lib/doctors';
-import { recordNewBooking, syncQueueFromBackend } from '../lib/queueStore';
+import { recordNewBooking, syncQueueFromBackend, getTodayDateString } from '../lib/queueStore';
 import { DoctorAvatar } from '../components/common/DoctorAvatar';
+import { HospitalMapModal } from '../components/common/HospitalMapModal';
 
 type Step = 'patient-info' | 'date' | 'time' | 'confirm' | 'success';
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
+
+export function parseSlotTimeToMinutes(timeStr: string): number {
+  const clean = timeStr.trim().toUpperCase();
+  const match = clean.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/);
+  if (!match) return 0;
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridiem = match[3];
+
+  if (meridiem === 'PM' && hours < 12) {
+    hours += 12;
+  } else if (meridiem === 'AM' && hours === 12) {
+    hours = 0;
+  }
+
+  return hours * 60 + minutes;
+}
+
+export function isSlotPassed(timeStr: string, dateStr: string): boolean {
+  if (!dateStr) return false;
+  const todayStr = getTodayDateString();
+
+  if (dateStr < todayStr) return true;
+  if (dateStr > todayStr) return false;
+
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const slotMinutes = parseSlotTimeToMinutes(timeStr);
+
+  return slotMinutes <= currentMinutes;
+}
 
 export function AppointmentForm() {
   const { doctorId } = useParams<{ doctorId: string }>();
@@ -21,6 +54,7 @@ export function AppointmentForm() {
   const [doctor, setDoctor] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [isMapOpen, setIsMapOpen] = useState(false);
   
   // Steps flow: patient-info -> date -> time -> confirm -> success
   const [currentStep, setCurrentStep] = useState<Step>('patient-info');
@@ -58,9 +92,15 @@ export function AppointmentForm() {
   const [availableSlots, setAvailableSlots] = useState<{ time: string; available: boolean }[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
-  // Generate realistic dates (Today, Tomorrow, Day 3, Day 4)
+  // Generate realistic dates (Today, Tomorrow, Day 3, Day 4) using local calendar date
   const dates = useMemo(() => {
     const today = new Date();
+    const formatYMD = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     const day3 = new Date(today);
@@ -69,17 +109,22 @@ export function AppointmentForm() {
     day4.setDate(day4.getDate() + 3);
 
     return [
-      { id: today.toISOString().split('T')[0], label: 'Today', day: today.toLocaleDateString('en-US', { weekday: 'short' }), date: today.getDate() },
-      { id: tomorrow.toISOString().split('T')[0], label: 'Tomorrow', day: tomorrow.toLocaleDateString('en-US', { weekday: 'short' }), date: tomorrow.getDate() },
-      { id: day3.toISOString().split('T')[0], label: day3.toLocaleDateString('en-US', { weekday: 'long' }), day: day3.toLocaleDateString('en-US', { weekday: 'short' }), date: day3.getDate() },
-      { id: day4.toISOString().split('T')[0], label: day4.toLocaleDateString('en-US', { weekday: 'long' }), day: day4.toLocaleDateString('en-US', { weekday: 'short' }), date: day4.getDate() },
+      { id: formatYMD(today), label: 'Today', day: today.toLocaleDateString('en-US', { weekday: 'short' }), date: today.getDate() },
+      { id: formatYMD(tomorrow), label: 'Tomorrow', day: tomorrow.toLocaleDateString('en-US', { weekday: 'short' }), date: tomorrow.getDate() },
+      { id: formatYMD(day3), label: day3.toLocaleDateString('en-US', { weekday: 'long' }), day: day3.toLocaleDateString('en-US', { weekday: 'short' }), date: day3.getDate() },
+      { id: formatYMD(day4), label: day4.toLocaleDateString('en-US', { weekday: 'long' }), day: day4.toLocaleDateString('en-US', { weekday: 'short' }), date: day4.getDate() },
     ];
   }, []);
 
-  // Set default selected date to today
+  // Set default selected date: if current time is after 5 PM (17:00), default to Tomorrow
   useEffect(() => {
     if (!selectedDate && dates.length > 0) {
-      setSelectedDate(dates[0].id);
+      const now = new Date();
+      if (now.getHours() >= 17 && dates.length > 1) {
+        setSelectedDate(dates[1].id);
+      } else {
+        setSelectedDate(dates[0].id);
+      }
     }
   }, [dates, selectedDate]);
 
@@ -107,6 +152,31 @@ export function AppointmentForm() {
     }
   }, [doctorId, loadDoctor]);
 
+  const generateStandardSlots = useCallback((targetDate: string) => {
+    const rawSlots = [
+      '09:00 AM',
+      '09:30 AM',
+      '10:00 AM',
+      '10:30 AM',
+      '11:00 AM',
+      '11:30 AM',
+      '02:00 PM',
+      '02:30 PM',
+      '03:00 PM',
+      '03:30 PM',
+      '04:00 PM',
+    ];
+
+    return rawSlots.map((time) => {
+      const isPast = isSlotPassed(time, targetDate);
+      return {
+        time,
+        available: !isPast,
+        isPast,
+      };
+    });
+  }, []);
+
   // Load available slots whenever date or doctor changes
   useEffect(() => {
     if (doctorId && selectedDate) {
@@ -114,37 +184,25 @@ export function AppointmentForm() {
       fetchAvailableSlots(doctorId, selectedDate)
         .then((data) => {
           if (data && data.length > 0) {
-            setAvailableSlots(data);
+            const enhanced = data.map((s: any) => {
+              const isPast = Boolean(s.isPast || isSlotPassed(s.time, selectedDate));
+              return {
+                ...s,
+                isPast,
+                available: Boolean(s.available) && !isPast,
+              };
+            });
+            setAvailableSlots(enhanced);
           } else {
-            // Standard slots fallback
-            setAvailableSlots([
-              { time: '09:00 AM', available: true },
-              { time: '09:30 AM', available: true },
-              { time: '10:00 AM', available: false },
-              { time: '10:30 AM', available: true },
-              { time: '11:00 AM', available: true },
-              { time: '11:30 AM', available: true },
-              { time: '02:00 PM', available: true },
-              { time: '02:30 PM', available: true },
-              { time: '03:00 PM', available: true },
-              { time: '03:30 PM', available: true },
-              { time: '04:00 PM', available: true },
-            ]);
+            setAvailableSlots(generateStandardSlots(selectedDate));
           }
         })
         .catch(() => {
-          setAvailableSlots([
-            { time: '09:00 AM', available: true },
-            { time: '09:30 AM', available: true },
-            { time: '10:00 AM', available: false },
-            { time: '11:00 AM', available: true },
-            { time: '02:30 PM', available: true },
-            { time: '03:30 PM', available: true },
-          ]);
+          setAvailableSlots(generateStandardSlots(selectedDate));
         })
         .finally(() => setLoadingSlots(false));
     }
-  }, [doctorId, selectedDate]);
+  }, [doctorId, selectedDate, generateStandardSlots]);
 
   // Validation for Step 1
   const handlePatientDetailsSubmit = (e: React.FormEvent) => {
@@ -189,6 +247,9 @@ export function AppointmentForm() {
     setSubmitting(true);
     setBookingError(null);
 
+    const docCleanName = (doctor.full_name || 'Doctor').replace(/^Dr\.?\s*/i, '').trim();
+    const docPrefix = docCleanName[0]?.toUpperCase() || 'A';
+
     try {
       // 1. Persist directly to backend database
       const result = await createAppointment({
@@ -205,7 +266,10 @@ export function AppointmentForm() {
         appointment_time: selectedTime,
       });
 
-      const issuedToken = result?.tokenNumber || `TK-${Math.floor(100 + Math.random() * 900)}`;
+      const todayStr = getTodayDateString();
+      const isToday = selectedDate === todayStr;
+
+      const issuedToken = isToday ? (result?.tokenNumber || `${docPrefix}-01`) : '';
       setTokenNumber(issuedToken);
 
       // 2. Synchronize shared queueStore
@@ -227,12 +291,13 @@ export function AppointmentForm() {
         tokenNumber: issuedToken,
       });
 
-      syncQueueFromBackend(String(doctor.id));
+      await syncQueueFromBackend(String(doctor.id));
       setCurrentStep('success');
     } catch (err: any) {
       console.warn('Backend sync warning, proceeding with resilient booking token', err);
-      // Fallback token generation so booking is never blocked
-      const fallbackToken = `TK-${Math.floor(100 + Math.random() * 900)}`;
+      const todayStr = getTodayDateString();
+      const isToday = selectedDate === todayStr;
+      const fallbackToken = isToday ? `${docPrefix}-01` : '';
       setTokenNumber(fallbackToken);
       
       recordNewBooking({
@@ -497,14 +562,31 @@ export function AppointmentForm() {
           {/* STEP 2: Date Selection */}
           {currentStep === 'date' && (
             <motion.div key="date" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-              <h3 className="text-lg font-heading font-semibold mb-4">Select Consultation Date</h3>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-heading font-semibold">Select Consultation Date</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Choose an upcoming clinic working day</p>
+                </div>
+                {new Date().getHours() >= 17 && (
+                  <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/20">
+                    Today's outpatient hours (9 AM - 5 PM) closed
+                  </span>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
                 {dates.map((d) => {
                   const isSelected = selectedDate === d.id;
+                  const isToday = d.id === getTodayDateString();
+                  const isPastClosing = isToday && new Date().getHours() >= 17;
+
                   return (
                     <button
                       key={d.id}
-                      onClick={() => setSelectedDate(d.id)}
+                      onClick={() => {
+                        setSelectedDate(d.id);
+                        setSelectedTime('');
+                      }}
                       className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all cursor-pointer ${
                         isSelected 
                           ? 'border-brand bg-brand/5 text-brand shadow-xs' 
@@ -518,6 +600,16 @@ export function AppointmentForm() {
                       <span className={`text-xs font-medium ${isSelected ? 'text-brand' : 'text-muted-foreground'}`}>
                         {d.day}
                       </span>
+                      {isPastClosing && (
+                        <span className="text-[10px] text-amber-700 dark:text-amber-300 font-bold mt-1.5">
+                          Hours Ended
+                        </span>
+                      )}
+                      {!isToday && d.label === 'Tomorrow' && new Date().getHours() >= 17 && (
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold mt-1.5">
+                          Recommended
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -560,27 +652,70 @@ export function AppointmentForm() {
                   </span>
                 )}
               </div>
+
+              {/* If all slots for today have already passed */}
+              {selectedDate === getTodayDateString() && availableSlots.length > 0 && availableSlots.every(s => (s as any).isPast || !s.available) && (
+                <div className="p-4 mb-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-800 dark:text-amber-300 flex items-center justify-center shrink-0">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="font-bold text-amber-900 dark:text-amber-200 block text-sm">
+                        Today's Outpatient Hours Have Ended
+                      </span>
+                      <p className="text-muted-foreground mt-0.5">
+                        All consultation slots for today (9:00 AM – 5:00 PM) have already passed. Please select tomorrow or an upcoming date.
+                      </p>
+                    </div>
+                  </div>
+                  {dates.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDate(dates[1].id);
+                        setSelectedTime('');
+                      }}
+                      className="px-4 py-2 rounded-xl bg-brand text-white font-semibold text-xs whitespace-nowrap hover:bg-brand/90 transition-all cursor-pointer shadow-xs shrink-0"
+                    >
+                      Book Tomorrow ({dates[1].label}) →
+                    </button>
+                  )}
+                </div>
+              )}
               
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-                {availableSlots.map((slot) => {
+                {availableSlots.map((slot: any) => {
                   const isSelected = selectedTime === slot.time;
-                  const isAvailable = slot.available;
+                  const isPast = Boolean(slot.isPast || isSlotPassed(slot.time, selectedDate));
+                  const isAvailable = Boolean(slot.available) && !isPast;
+
                   return (
                     <button
                       key={slot.time}
                       disabled={!isAvailable}
                       onClick={() => isAvailable && setSelectedTime(slot.time)}
                       className={`py-3 px-3 rounded-xl text-xs font-semibold border-2 transition-all text-center flex flex-col items-center justify-center gap-1 ${
-                        !isAvailable
+                        isPast
+                          ? 'border-border/30 bg-secondary/15 text-muted-foreground/40 cursor-not-allowed opacity-60'
+                          : !isAvailable
                           ? 'border-border/40 bg-secondary/20 text-muted-foreground/50 cursor-not-allowed line-through'
                           : isSelected
                           ? 'border-brand bg-brand text-white shadow-xs cursor-pointer'
                           : 'border-border bg-card text-foreground hover:border-brand/40 hover:bg-secondary/40 cursor-pointer'
                       }`}
                     >
-                      <span>{slot.time}</span>
-                      <span className={`text-[10px] font-normal ${isSelected ? 'text-white/90' : isAvailable ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground/60'}`}>
-                        {isAvailable ? 'Available' : 'Booked'}
+                      <span className={isPast ? 'line-through text-muted-foreground/50' : ''}>{slot.time}</span>
+                      <span className={`text-[10px] font-medium ${
+                        isSelected 
+                          ? 'text-white/90' 
+                          : isPast 
+                          ? 'text-muted-foreground/45 font-semibold' 
+                          : isAvailable 
+                          ? 'text-emerald-600 dark:text-emerald-400' 
+                          : 'text-muted-foreground/60'
+                      }`}>
+                        {isPast ? 'Passed' : isAvailable ? 'Available' : 'Booked'}
                       </span>
                     </button>
                   );
@@ -667,12 +802,12 @@ export function AppointmentForm() {
                   {submitting ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Reserving Slot & Issuing Token...</span>
+                      <span>{selectedDate === getTodayDateString() ? 'Reserving Slot & Issuing Token...' : 'Confirming Appointment...'}</span>
                     </>
                   ) : (
                     <>
                       <CheckCircle className="w-5 h-5" />
-                      <span>Confirm & Generate Token</span>
+                      <span>{selectedDate === getTodayDateString() ? 'Confirm & Generate Token' : 'Confirm Appointment'}</span>
                     </>
                   )}
                 </button>
@@ -687,11 +822,28 @@ export function AppointmentForm() {
                 <CheckCircle className="w-10 h-10 text-emerald-500" />
               </div>
               <h2 className="text-3xl font-heading font-semibold mb-2">Appointment Confirmed!</h2>
-              <p className="text-foreground/70 mb-8">Your visit has been recorded in the hospital management system.</p>
+              <p className="text-foreground/70 mb-8">
+                {selectedDate === getTodayDateString()
+                  ? 'Your visit has been recorded in the hospital management system.'
+                  : `Your consultation is scheduled for ${selectedDate}.`}
+              </p>
 
               <div className="bg-card border border-border rounded-2xl p-8 max-w-md mx-auto mb-8 shadow-xs">
-                <div className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground mb-2">Your Live Queue Token</div>
-                <div className="text-5xl font-heading font-bold text-brand mb-6">{tokenNumber}</div>
+                {selectedDate === getTodayDateString() && tokenNumber ? (
+                  <>
+                    <div className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground mb-2">Your Live Queue Token</div>
+                    <div className="text-5xl font-heading font-bold text-brand mb-6">{tokenNumber}</div>
+                  </>
+                ) : (
+                  <div className="mb-6 pb-6 border-b border-border/50">
+                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 font-bold text-xs uppercase tracking-wider mb-3">
+                      Click clinic on that day
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Token generation opens on your appointment date ({selectedDate}). When you arrive at the clinic reception, check in to receive your active consultation token.
+                    </p>
+                  </div>
+                )}
                 
                 <div className="grid grid-cols-2 gap-4 text-left border-t border-border pt-6">
                   <div>
@@ -716,26 +868,50 @@ export function AppointmentForm() {
                   </div>
                   <div>
                     <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1">Status</div>
-                    <div className="font-semibold text-emerald-600 text-sm flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                      Queued & Active
-                    </div>
+                    {selectedDate === getTodayDateString() && tokenNumber ? (
+                      <div className="font-semibold text-emerald-600 text-sm flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                        Queued & Active
+                      </div>
+                    ) : (
+                      <div className="font-semibold text-brand text-sm flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-brand" />
+                        Scheduled
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <button
+                  type="button"
+                  onClick={() => setIsMapOpen(true)}
+                  className="w-full sm:w-auto px-6 py-3.5 bg-card border border-border text-foreground rounded-xl font-semibold text-sm hover:bg-secondary transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                >
+                  <Compass className="w-4 h-4 text-brand" />
+                  <span>View Hospital Map & Suite</span>
+                </button>
+                {selectedDate === getTodayDateString() && tokenNumber ? (
+                  <button
+                    onClick={() => navigate(`/patient/queue?token=${tokenNumber}`)}
+                    className="w-full sm:w-auto px-8 py-3.5 bg-brand text-white rounded-xl font-semibold text-sm hover:bg-brand/90 transition-all shadow-sm cursor-pointer"
+                  >
+                    Track My Queue Live
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => navigate('/patient/dashboard')}
+                    className="w-full sm:w-auto px-8 py-3.5 bg-brand text-white rounded-xl font-semibold text-sm hover:bg-brand/90 transition-all shadow-sm cursor-pointer"
+                  >
+                    View in Dashboard
+                  </button>
+                )}
+                <button
                   onClick={() => navigate('/')}
-                  className="w-full sm:w-auto px-8 py-3.5 bg-card border border-border text-foreground rounded-xl font-semibold text-sm hover:bg-secondary transition-all cursor-pointer"
+                  className="w-full sm:w-auto px-6 py-3.5 bg-transparent text-muted-foreground rounded-xl font-semibold text-sm hover:text-foreground transition-all cursor-pointer"
                 >
                   Back to Home
-                </button>
-                <button
-                  onClick={() => navigate(`/patient/queue?token=${tokenNumber}`)}
-                  className="w-full sm:w-auto px-8 py-3.5 bg-brand text-white rounded-xl font-semibold text-sm hover:bg-brand/90 transition-all shadow-sm cursor-pointer"
-                >
-                  Track My Queue Live
                 </button>
               </div>
             </motion.div>
@@ -743,6 +919,13 @@ export function AppointmentForm() {
 
         </AnimatePresence>
       </div>
+
+      <HospitalMapModal
+        isOpen={isMapOpen}
+        onClose={() => setIsMapOpen(false)}
+        targetDepartment={doctor?.specialization}
+        targetDoctorName={doctor?.full_name}
+      />
     </div>
   );
 }

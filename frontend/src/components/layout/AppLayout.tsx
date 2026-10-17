@@ -5,6 +5,7 @@ import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { X, LayoutDashboard, Search, Calendar, Users, FileText, Activity, Bell, User, Settings, LogOut } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { MediSyncLogoCompact } from '../ui/Logo';
 
 const navItems = [
   { name: 'Dashboard', path: '/patient/dashboard', icon: LayoutDashboard },
@@ -45,10 +46,7 @@ export function AppLayout() {
               className="fixed inset-y-0 left-0 w-64 bg-card border-r border-border z-50 flex flex-col md:hidden"
             >
               <div className="flex items-center justify-between p-6">
-                <h1 className="flex items-center gap-2.5 text-xl font-bold tracking-tight">
-                  <img src="/logo.jpg" alt="CareTrack" className="w-8 h-8 rounded-lg dark:invert" />
-                  CareTrack
-                </h1>
+                <MediSyncLogoCompact onClick={() => setIsMobileMenuOpen(false)} />
                 <button 
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="p-2 -mr-2 rounded-md hover:bg-muted"
