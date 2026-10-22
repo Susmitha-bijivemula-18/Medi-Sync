@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Users, 
@@ -15,7 +15,8 @@ import {
   getLiveQueueForDoctor, 
   getDoctorScheduleSettings, 
   callNextPatient,
-  initQueueSync
+  initQueueSync,
+  compareAppointmentsByTime
 } from '../../lib/queueStore';
 
 export function DoctorDashboard() {
@@ -41,9 +42,16 @@ export function DoctorDashboard() {
     };
   }, [doctorId, doctorName]);
 
-  if (!doctor) return null;
-
   const { currentPatient, waitingQueue, completedToday } = queueData;
+
+  // Chronologically arrange patient tokens according to their appointment timings
+  const sortedWaitingQueue = useMemo(() => {
+    return [...waitingQueue].sort(compareAppointmentsByTime);
+  }, [waitingQueue]);
+
+  const sortedCompletedToday = useMemo(() => {
+    return [...completedToday].sort(compareAppointmentsByTime);
+  }, [completedToday]);
   const totalToday = (currentPatient ? 1 : 0) + waitingQueue.length + completedToday.length;
 
   const handleCallNext = async () => {
@@ -58,10 +66,10 @@ export function DoctorDashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-xl bg-card border border-border shadow-xs">
         <div>
           <span className="text-xs font-semibold text-brand uppercase tracking-wider block mb-1">
-            Department of {doctor.specialization} · Today's Clinic
+            Department of {doctor?.specialization || 'Cardiology'} · Today's Clinic
           </span>
           <h1 className="text-2xl sm:text-3xl font-heading font-bold text-foreground tracking-tight">
-            Welcome back, {doctor.full_name}
+            Welcome back, {doctor?.full_name || doctorName}
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             {schedule.statusMessage || 'Live consultation queue is active and running.'}
@@ -125,10 +133,10 @@ export function DoctorDashboard() {
             <Clock className="w-4 h-4 text-indigo-500" />
           </div>
           <div className="text-2xl sm:text-3xl font-heading font-bold text-brand">
-            {waitingQueue[0]?.tokenNumber || (currentPatient ? 'In Progress' : 'None')}
+            {sortedWaitingQueue[0]?.tokenNumber || (currentPatient ? 'In Progress' : 'None')}
           </div>
           <span className="text-[11px] text-muted-foreground mt-1 block">
-            {waitingQueue[0] ? waitingQueue[0].appointmentTime : 'Queue clear'}
+            {sortedWaitingQueue[0] ? sortedWaitingQueue[0].appointmentTime : 'Queue clear'}
           </span>
         </div>
 
@@ -294,7 +302,7 @@ export function DoctorDashboard() {
               Today's Patients Schedule
             </h3>
             <p className="text-xs text-muted-foreground">
-              Live status of consultations for {doctor.full_name}
+              Live status of consultations for {doctor?.full_name || doctorName} · Arranged chronologically by appointment time
             </p>
           </div>
           <Link
@@ -322,7 +330,12 @@ export function DoctorDashboard() {
                 <tr className="bg-brand/[0.03]">
                   <td className="py-3 px-3 font-mono font-bold text-brand">{currentPatient.tokenNumber}</td>
                   <td className="py-3 px-3 font-semibold text-foreground">{currentPatient.patientName}</td>
-                  <td className="py-3 px-3 text-muted-foreground">{currentPatient.appointmentTime}</td>
+                  <td className="py-3 px-3 text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 font-semibold text-foreground">
+                      <Clock className="w-3 h-3 text-brand inline" />
+                      {currentPatient.appointmentTime}
+                    </span>
+                  </td>
                   <td className="py-3 px-3 text-muted-foreground max-w-xs truncate">{currentPatient.problemCategory}</td>
                   <td className="py-3 px-3">
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
@@ -337,11 +350,16 @@ export function DoctorDashboard() {
                 </tr>
               )}
 
-              {waitingQueue.map((item) => (
+              {sortedWaitingQueue.map((item) => (
                 <tr key={item.id} className="hover:bg-secondary/30 transition-colors">
                   <td className="py-3 px-3 font-mono font-semibold text-foreground">{item.tokenNumber}</td>
                   <td className="py-3 px-3 font-semibold text-foreground">{item.patientName}</td>
-                  <td className="py-3 px-3 text-muted-foreground">{item.appointmentTime}</td>
+                  <td className="py-3 px-3 text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 font-semibold text-foreground">
+                      <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400 inline" />
+                      {item.appointmentTime}
+                    </span>
+                  </td>
                   <td className="py-3 px-3 text-muted-foreground max-w-xs truncate">{item.problemCategory}</td>
                   <td className="py-3 px-3">
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
@@ -356,11 +374,16 @@ export function DoctorDashboard() {
                 </tr>
               ))}
 
-              {completedToday.map((item) => (
+              {sortedCompletedToday.map((item) => (
                 <tr key={item.id} className="opacity-75">
                   <td className="py-3 px-3 font-mono text-muted-foreground">{item.tokenNumber}</td>
                   <td className="py-3 px-3 text-muted-foreground">{item.patientName}</td>
-                  <td className="py-3 px-3 text-muted-foreground">{item.appointmentTime}</td>
+                  <td className="py-3 px-3 text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-muted-foreground inline" />
+                      {item.appointmentTime}
+                    </span>
+                  </td>
                   <td className="py-3 px-3 text-muted-foreground max-w-xs truncate">{item.problemCategory}</td>
                   <td className="py-3 px-3">
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-secondary text-muted-foreground">

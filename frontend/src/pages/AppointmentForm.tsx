@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { fetchDoctorById, createAppointment, fetchAvailableSlots, getCurrentUser } from '../lib/supabase';
 import { mockDoctors } from '../lib/doctors';
-import { recordNewBooking, syncQueueFromBackend, getTodayDateString } from '../lib/queueStore';
+import { recordNewBooking, syncQueueFromBackend, getTodayDateString, getDoctorTokenPrefix } from '../lib/queueStore';
 import { DoctorAvatar } from '../components/common/DoctorAvatar';
 import { HospitalMapModal } from '../components/common/HospitalMapModal';
 
@@ -247,8 +247,7 @@ export function AppointmentForm() {
     setSubmitting(true);
     setBookingError(null);
 
-    const docCleanName = (doctor.full_name || 'Doctor').replace(/^Dr\.?\s*/i, '').trim();
-    const docPrefix = docCleanName[0]?.toUpperCase() || 'A';
+    const docPrefix = getDoctorTokenPrefix(doctor.full_name);
 
     try {
       // 1. Persist directly to backend database
@@ -266,10 +265,7 @@ export function AppointmentForm() {
         appointment_time: selectedTime,
       });
 
-      const todayStr = getTodayDateString();
-      const isToday = selectedDate === todayStr;
-
-      const issuedToken = isToday ? (result?.tokenNumber || `${docPrefix}-01`) : '';
+      const issuedToken = result?.tokenNumber || `${docPrefix}-01`;
       setTokenNumber(issuedToken);
 
       // 2. Synchronize shared queueStore
@@ -294,10 +290,7 @@ export function AppointmentForm() {
       await syncQueueFromBackend(String(doctor.id));
       setCurrentStep('success');
     } catch (err: any) {
-      console.warn('Backend sync warning, proceeding with resilient booking token', err);
-      const todayStr = getTodayDateString();
-      const isToday = selectedDate === todayStr;
-      const fallbackToken = isToday ? `${docPrefix}-01` : '';
+      const fallbackToken = `${docPrefix}-01`;
       setTokenNumber(fallbackToken);
       
       recordNewBooking({
@@ -829,21 +822,21 @@ export function AppointmentForm() {
               </p>
 
               <div className="bg-card border border-border rounded-2xl p-8 max-w-md mx-auto mb-8 shadow-xs">
-                {selectedDate === getTodayDateString() && tokenNumber ? (
+                {tokenNumber ? (
                   <>
-                    <div className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground mb-2">Your Live Queue Token</div>
-                    <div className="text-5xl font-heading font-bold text-brand mb-6">{tokenNumber}</div>
-                  </>
-                ) : (
-                  <div className="mb-6 pb-6 border-b border-border/50">
-                    <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-800 dark:text-amber-300 font-bold text-xs uppercase tracking-wider mb-3">
-                      Click clinic on that day
+                    <div className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground mb-2">
+                      {selectedDate === getTodayDateString() ? 'Your Live Queue Token' : 'Your Confirmed Token'}
                     </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Token generation opens on your appointment date ({selectedDate}). When you arrive at the clinic reception, check in to receive your active consultation token.
-                    </p>
-                  </div>
-                )}
+                    <div className="text-5xl font-heading font-bold text-brand mb-3">{tokenNumber}</div>
+                    {selectedDate !== getTodayDateString() ? (
+                      <p className="text-xs text-muted-foreground mb-6">
+                        Confirmed for {selectedDate}. Live queue calling will begin on clinic day at {selectedTime}.
+                      </p>
+                    ) : (
+                      <div className="mb-6" />
+                    )}
+                  </>
+                ) : null}
                 
                 <div className="grid grid-cols-2 gap-4 text-left border-t border-border pt-6">
                   <div>

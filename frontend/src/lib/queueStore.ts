@@ -63,6 +63,82 @@ export function getTodayDateString(): string {
   return `${year}-${month}-${day}`;
 }
 
+// ─── Doctor Unique Prefix Helper ───────────────────────────────────────────
+export function getDoctorTokenPrefix(doctorName?: string): string {
+  if (!doctorName) return 'OPD';
+  const clean = doctorName.replace(/^Dr\.?\s*/i, '').trim();
+  const lower = clean.toLowerCase();
+
+  if (lower.startsWith('ananya')) return 'A';
+  if (lower.startsWith('amit')) return 'AP';
+  if (lower.startsWith('arjun')) return 'AJ';
+  if (lower.startsWith('sneha')) return 'S';
+  if (lower.startsWith('sanjay')) return 'SD';
+  if (lower.startsWith('suresh')) return 'SN';
+  if (lower.startsWith('priya')) return 'PS';
+  if (lower.startsWith('pooja')) return 'P';
+  if (lower.startsWith('ramesh')) return 'R';
+  if (lower.startsWith('rajesh')) return 'RG';
+  if (lower.startsWith('kavitha')) return 'K';
+  if (lower.startsWith('deepa')) return 'D';
+  if (lower.startsWith('meera')) return 'M';
+  if (lower.startsWith('vikram')) return 'V';
+  if (lower.startsWith('lakshmi')) return 'L';
+  if (lower.startsWith('nisha')) return 'N';
+
+  const parts = clean.split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return clean.substring(0, Math.min(2, clean.length)).toUpperCase();
+}
+
+// ─── Chronological Time Sorting Utilities ──────────────────────────────────
+export function parseTimeToMinutes(timeStr?: string | null): number {
+  if (!timeStr || typeof timeStr !== 'string') return 9999;
+  const clean = timeStr.trim().toUpperCase();
+
+  // Match 12-hour format e.g. "04:40 PM", "4:40 PM", "10:00AM", "12:00 PM"
+  const match12 = clean.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/);
+  if (match12) {
+    let hours = parseInt(match12[1], 10);
+    const minutes = parseInt(match12[2], 10);
+    const meridiem = match12[3];
+
+    if (meridiem === 'PM' && hours < 12) {
+      hours += 12;
+    } else if (meridiem === 'AM' && hours === 12) {
+      hours = 0;
+    }
+    return hours * 60 + minutes;
+  }
+
+  // Match 24-hour format e.g. "16:40"
+  const match24 = clean.match(/^(\d{1,2}):(\d{2})$/);
+  if (match24) {
+    const hours = parseInt(match24[1], 10);
+    const minutes = parseInt(match24[2], 10);
+    return hours * 60 + minutes;
+  }
+
+  return 9999;
+}
+
+export function compareAppointmentsByTime(
+  a: { appointmentTime?: string; tokenNumber?: string },
+  b: { appointmentTime?: string; tokenNumber?: string }
+): number {
+  const timeA = parseTimeToMinutes(a.appointmentTime);
+  const timeB = parseTimeToMinutes(b.appointmentTime);
+
+  if (timeA !== timeB) {
+    return timeA - timeB;
+  }
+
+  // Tie-breaker: by token number (e.g. A-01 before A-02)
+  return (a.tokenNumber || '').localeCompare(b.tokenNumber || '', undefined, { numeric: true });
+}
+
 // ─── Real-Time Server-Sent Events (SSE) Listener ────────────────────────────
 let sseConnection: EventSource | null = null;
 let pollTimer: any = null;
@@ -140,14 +216,15 @@ export async function syncQueueFromBackend(doctorId?: string): Promise<void> {
       const mapped: QueueAppointment[] = cleanDbAppts.map((a: any) => {
         const isToday = a.appointmentDate === todayStr;
         let tokenNumber = a.tokenNumber || '';
-        let status = (a.status as any) || (isToday ? 'waiting' : 'scheduled');
+        const docCleanName = (a.doctor?.fullName || a.doctor?.full_name || a.doctorName || 'Doctor').replace(/^Dr\.?\s*/i, '').trim();
+        const prefix = (docCleanName[0] || 'A').toUpperCase();
+        if (!tokenNumber) {
+          tokenNumber = `${prefix}-01`;
+        }
 
-        // If appointment date is not today, do not generate or show active live token
-        if (!isToday) {
-          tokenNumber = '';
-          if (status === 'waiting' || status === 'in-consultation') {
-            status = 'scheduled';
-          }
+        let status = (a.status as any) || (isToday ? 'waiting' : 'scheduled');
+        if (!isToday && (status === 'waiting' || status === 'in-consultation')) {
+          status = 'scheduled';
         }
 
         return {
@@ -216,9 +293,39 @@ export function loadAllAppointments(): QueueAppointment[] {
     });
 
     const todayStr = getTodayDateString();
+    const usedByDate = new Map<string, Set<string>>();
+
     realAppointments.forEach((item) => {
-      if (item.appointmentDate && item.appointmentDate !== todayStr) {
-        item.tokenNumber = '';
+      const d = item.appointmentDate || todayStr;
+      if (!usedByDate.has(d)) usedByDate.set(d, new Set());
+      const used = usedByDate.get(d)!;
+
+      const currentToken = (item.tokenNumber || '').trim().toUpperCase();
+      // Deduplicate: if token is missing or already taken on this appointment date
+      if (!currentToken || used.has(currentToken)) {
+        const prefix = getDoctorTokenPrefix(item.doctorName);
+        let maxSeq = 0;
+        const re = new RegExp(`^${prefix}-(\\d+)$`, 'i');
+        used.forEach((t) => {
+          const m = t.match(re);
+          if (m) {
+            const seq = parseInt(m[1], 10);
+            if (seq > maxSeq) maxSeq = seq;
+          }
+        });
+        let nextSeq = maxSeq + 1;
+        let uniqueToken = `${prefix}-${String(nextSeq).padStart(2, '0')}`;
+        while (used.has(uniqueToken)) {
+          nextSeq++;
+          uniqueToken = `${prefix}-${String(nextSeq).padStart(2, '0')}`;
+        }
+        item.tokenNumber = uniqueToken;
+        used.add(uniqueToken);
+      } else {
+        used.add(currentToken);
+      }
+
+      if (item.appointmentDate && item.appointmentDate > todayStr) {
         if (item.status === 'in-consultation' || item.status === 'waiting') {
           item.status = 'scheduled';
         }
@@ -303,6 +410,11 @@ export function getAppointmentsForDoctor(doctorId: string, doctorName?: string):
     }
 
     return false;
+  }).sort((a, b) => {
+    if (a.appointmentDate && b.appointmentDate && a.appointmentDate !== b.appointmentDate) {
+      return a.appointmentDate.localeCompare(b.appointmentDate);
+    }
+    return compareAppointmentsByTime(a, b);
   });
 }
 
@@ -317,8 +429,12 @@ export function getLiveQueueForDoctor(doctorId: string, doctorName?: string): {
   const todayOnly = doctorAppts.filter((a) => a.appointmentDate === todayStr);
 
   const currentPatient = todayOnly.find((a) => a.status === 'in-consultation') || null;
-  const waitingQueue = todayOnly.filter((a) => a.status === 'waiting' && Boolean(a.tokenNumber));
-  const completedToday = todayOnly.filter((a) => a.status === 'completed');
+  const waitingQueue = todayOnly
+    .filter((a) => a.status === 'waiting' && Boolean(a.tokenNumber))
+    .sort(compareAppointmentsByTime);
+  const completedToday = todayOnly
+    .filter((a) => a.status === 'completed')
+    .sort(compareAppointmentsByTime);
 
   return { currentPatient, waitingQueue, completedToday };
 }
@@ -350,7 +466,11 @@ export async function callNextPatient(doctorId: string, doctorName?: string): Pr
     currentActive.completedAt = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
-  const nextWaiting = todayOnly.find((a) => a.status === 'waiting' && Boolean(a.tokenNumber));
+  const waitingList = todayOnly
+    .filter((a) => a.status === 'waiting' && Boolean(a.tokenNumber))
+    .sort(compareAppointmentsByTime);
+
+  const nextWaiting = waitingList[0] || null;
   if (!nextWaiting) {
     saveAllAppointments(all);
     return { success: false, calledPatient: null };
@@ -610,25 +730,35 @@ export function recordNewBooking(data: {
   const todayStr = getTodayDateString();
   const isToday = data.appointmentDate === todayStr;
 
-  let tokenNumber = '';
-  let status: 'waiting' | 'scheduled' = 'scheduled';
+  const prefix = getDoctorTokenPrefix(data.doctorName);
+  const usedTokens = new Set(
+    all
+      .filter((a) => a.appointmentDate === data.appointmentDate)
+      .map((a) => (a.tokenNumber || '').trim().toUpperCase())
+      .filter(Boolean)
+  );
 
-  // Only generate a token if appointment is for TODAY
-  if (isToday) {
-    status = 'waiting';
-    if (data.tokenNumber && data.tokenNumber.trim()) {
-      tokenNumber = data.tokenNumber.trim();
-    } else {
-      const doctorCleanName = (data.doctorName || 'Doctor').replace(/^Dr\.?\s*/i, '').trim();
-      const doctorInitial = doctorCleanName[0]?.toUpperCase() || 'A';
-      const doctorTodayCount = all.filter(
-        (a) => (a.doctorId === data.doctorId || (a.doctorName && a.doctorName.toLowerCase().includes(doctorCleanName.toLowerCase()))) && 
-               a.appointmentDate === data.appointmentDate &&
-               Boolean(a.tokenNumber)
-      ).length;
-      tokenNumber = `${doctorInitial}-${String(doctorTodayCount + 1).padStart(2, '0')}`;
+  let tokenNumber = (data.tokenNumber && data.tokenNumber.trim().toUpperCase()) || '';
+  if (!tokenNumber || usedTokens.has(tokenNumber)) {
+    let maxSeq = 0;
+    const re = new RegExp(`^${prefix}-(\\d+)$`, 'i');
+    usedTokens.forEach((t) => {
+      const m = t.match(re);
+      if (m) {
+        const seq = parseInt(m[1], 10);
+        if (seq > maxSeq) maxSeq = seq;
+      }
+    });
+    let nextSeq = maxSeq + 1;
+    let candidate = `${prefix}-${String(nextSeq).padStart(2, '0')}`;
+    while (usedTokens.has(candidate)) {
+      nextSeq++;
+      candidate = `${prefix}-${String(nextSeq).padStart(2, '0')}`;
     }
+    tokenNumber = candidate;
   }
+
+  const status: 'waiting' | 'scheduled' = isToday ? 'waiting' : 'scheduled';
 
   const newAppt: QueueAppointment = {
     id: data.id || ('apt-' + Date.now()),

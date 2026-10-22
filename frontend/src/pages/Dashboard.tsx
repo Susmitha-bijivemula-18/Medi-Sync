@@ -1,7 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Search, Calendar, Users, FileText, Activity } from 'lucide-react';
+import { Search, Calendar, Users, FileText, Activity, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { loadAllAppointments, getPatientQueueStatus, initQueueSync, type QueueAppointment } from '../lib/queueStore';
+import { 
+  loadAllAppointments, 
+  getPatientQueueStatus, 
+  initQueueSync, 
+  getTodayDateString,
+  type QueueAppointment 
+} from '../lib/queueStore';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -18,14 +24,36 @@ export function Dashboard() {
     };
   }, []);
 
-  // Find active appointment: prioritized by in-consultation, then waiting, then most recent
+  const todayStr = getTodayDateString();
+  const dTomorrow = new Date();
+  dTomorrow.setDate(dTomorrow.getDate() + 1);
+  const tomorrowStr = `${dTomorrow.getFullYear()}-${String(dTomorrow.getMonth() + 1).padStart(2, '0')}-${String(dTomorrow.getDate()).padStart(2, '0')}`;
+
+  // Active appointment ONLY applies to visits scheduled for TODAY
+  const todayAppts = appointments.filter((a) => a.appointmentDate === todayStr);
   const activeAppt = 
-    appointments.find((a) => a.status === 'in-consultation') ||
-    appointments.find((a) => a.status === 'waiting') ||
-    appointments[0];
+    todayAppts.find((a) => a.status === 'in-consultation') ||
+    todayAppts.find((a) => a.status === 'waiting' && Boolean(a.tokenNumber)) ||
+    (todayAppts.find((a) => a.status === 'completed') || null);
 
   const queueInfo = activeAppt ? getPatientQueueStatus(activeAppt.tokenNumber) : null;
-  const upcomingVisits = appointments.filter((a) => a.id !== activeAppt?.id && (a.status === 'waiting' || a.status === 'in-consultation')).slice(0, 4);
+
+  // Next upcoming future appointment (e.g. tomorrow or future date)
+  const nextUpcoming = appointments
+    .filter((a) => a.appointmentDate >= todayStr && a.id !== activeAppt?.id && a.status !== 'completed' && a.status !== 'cancelled')
+    .sort((a, b) => {
+      if (a.appointmentDate !== b.appointmentDate) return (a.appointmentDate || '').localeCompare(b.appointmentDate || '');
+      return (a.appointmentTime || '').localeCompare(b.appointmentTime || '');
+    })[0] || null;
+
+  // All upcoming & scheduled visits for the list
+  const upcomingVisits = appointments
+    .filter((a) => a.id !== activeAppt?.id && a.appointmentDate >= todayStr && a.status !== 'completed' && a.status !== 'cancelled')
+    .sort((a, b) => {
+      if (a.appointmentDate !== b.appointmentDate) return (a.appointmentDate || '').localeCompare(b.appointmentDate || '');
+      return (a.appointmentTime || '').localeCompare(b.appointmentTime || '');
+    })
+    .slice(0, 5);
 
   const [patientName] = useState<string>(() => {
     try {
@@ -66,7 +94,7 @@ export function Dashboard() {
       </header>
 
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Active Appointment Card */}
+        {/* Active Appointment or Next Scheduled Visit Card */}
         {activeAppt && queueInfo ? (
           <div 
             onClick={() => navigate(`/patient/queue?token=${activeAppt.tokenNumber}`)}
@@ -79,7 +107,7 @@ export function Dashboard() {
             <div className="flex items-center justify-between mb-8">
               <h2 className="font-semibold text-lg flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${activeAppt.status === 'completed' ? 'bg-muted-foreground' : 'bg-emerald-500 animate-pulse'}`} />
-                {activeAppt.status === 'completed' ? 'Recent Completed Consultation' : 'Active Appointment'}
+                {activeAppt.status === 'completed' ? 'Recent Completed Consultation' : 'Active Appointment Today'}
               </h2>
               <span className="text-xs px-2.5 py-1 bg-secondary text-secondary-foreground rounded-full font-medium tracking-wide uppercase">
                 {activeAppt.appointmentDate} · {activeAppt.appointmentTime}
@@ -115,6 +143,58 @@ export function Dashboard() {
                 <span className="text-xs font-semibold opacity-80 uppercase tracking-widest mb-2">Your Token</span>
                 <span className="text-5xl font-bold tracking-tighter">{activeAppt.tokenNumber}</span>
                 <span className="text-[10px] mt-2 opacity-80 underline">Track Live →</span>
+              </div>
+            </div>
+          </div>
+        ) : nextUpcoming ? (
+          <div 
+            onClick={() => navigate(`/patient/appointments`)}
+            className="md:col-span-2 rounded-2xl border border-border bg-card p-8 shadow-sm relative overflow-hidden group cursor-pointer hover:border-brand/40 transition-colors"
+          >
+            <div className="absolute top-0 right-0 p-8 opacity-5 transition-opacity group-hover:opacity-10 pointer-events-none">
+              <Calendar className="w-48 h-48" />
+            </div>
+
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="font-semibold text-lg flex items-center gap-2">
+                <div className="w-2.5 h-2.5 rounded-full bg-brand" />
+                <span>Next Scheduled Visit</span>
+                <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-brand/10 text-brand uppercase tracking-wider">
+                  {nextUpcoming.appointmentDate === tomorrowStr ? 'Tomorrow' : 'Scheduled'}
+                </span>
+              </h2>
+              <span className="text-xs px-2.5 py-1 bg-secondary text-secondary-foreground rounded-full font-medium tracking-wide uppercase">
+                {nextUpcoming.appointmentDate} · {nextUpcoming.appointmentTime}
+              </span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-8 items-start relative z-10">
+              <div className="flex-1 space-y-5">
+                <div>
+                  <p className="font-semibold text-2xl text-foreground">{nextUpcoming.doctorName}</p>
+                  <p className="text-muted-foreground font-medium">{nextUpcoming.specialization}</p>
+                  {nextUpcoming.problemDescription && (
+                    <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                      <span className="font-semibold text-foreground">Concern:</span> {nextUpcoming.problemDescription}
+                    </p>
+                  )}
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-secondary/50 border border-border/60 text-xs space-y-1">
+                  <div className="font-semibold text-foreground flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-brand" />
+                    <span>Live Queue Activates Tomorrow on Clinic Day</span>
+                  </div>
+                  <p className="text-muted-foreground text-[11px] leading-relaxed">
+                    Your OPD token slot is confirmed. When clinic opens {nextUpcoming.appointmentDate === tomorrowStr ? 'tomorrow morning' : `on ${nextUpcoming.appointmentDate}`}, live queue tracking will activate here to show calling status in real-time.
+                  </p>
+                </div>
+              </div>
+
+              <div className="w-full sm:w-48 aspect-square rounded-2xl bg-brand text-white flex flex-col items-center justify-center p-6 text-center shadow-lg transform transition-transform group-hover:scale-105">
+                <span className="text-xs font-semibold opacity-80 uppercase tracking-widest mb-2">Confirmed Token</span>
+                <span className="text-5xl font-bold tracking-tighter">{nextUpcoming.tokenNumber || 'A-01'}</span>
+                <span className="text-[10px] mt-2 opacity-80 underline">View Slip & Details →</span>
               </div>
             </div>
           </div>
@@ -237,26 +317,33 @@ export function Dashboard() {
               upcomingVisits.map((appt) => (
                 <div 
                   key={appt.id} 
-                  onClick={() => navigate(`/patient/queue?token=${appt.tokenNumber}`)}
+                  onClick={() => navigate(`/patient/appointments`)}
                   className="flex items-center gap-4 p-4 rounded-xl border border-border bg-card hover:border-brand/40 hover:shadow-xs transition-all cursor-pointer group"
                 >
                   <div className="w-14 h-14 rounded-xl bg-secondary flex flex-col items-center justify-center text-foreground group-hover:bg-brand group-hover:text-white transition-colors">
                     <span className="text-[10px] font-bold uppercase tracking-widest opacity-80">Token</span>
-                    <span className="text-base font-bold leading-none mt-0.5">{appt.tokenNumber}</span>
+                    <span className="text-base font-bold leading-none mt-0.5">{appt.tokenNumber || 'A-01'}</span>
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-medium text-sm text-foreground group-hover:text-brand transition-colors">{appt.problemCategory || appt.specialization}</h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-medium text-sm text-foreground group-hover:text-brand transition-colors">{appt.problemCategory || appt.specialization}</h4>
+                      {appt.appointmentDate === tomorrowStr && (
+                        <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-brand/10 text-brand">
+                          Tomorrow
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground mt-1">{appt.doctorName} • {appt.appointmentDate}</p>
                   </div>
                   <div className="text-right">
                     <div className="text-xs font-semibold text-foreground bg-secondary px-2.5 py-1 rounded-md">{appt.appointmentTime}</div>
-                    <span className="text-[10px] text-brand font-medium block mt-1">Track →</span>
+                    <span className="text-[10px] text-brand font-medium block mt-1">View Slip →</span>
                   </div>
                 </div>
               ))
             ) : (
               <div className="py-8 text-center text-muted-foreground text-xs">
-                No additional upcoming visits scheduled.
+                No upcoming visits scheduled.
               </div>
             )}
           </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   Users, 
   CheckCircle2, 
@@ -15,6 +15,7 @@ import {
   rescheduleAppointment,
   getDoctorScheduleSettings,
   initQueueSync,
+  compareAppointmentsByTime,
   type QueueAppointment 
 } from '../../lib/queueStore';
 
@@ -58,6 +59,10 @@ export function DoctorQueue() {
   if (!doctor) return null;
 
   const { currentPatient, waitingQueue, completedToday } = queueData;
+
+  const sortedWaitingQueue = useMemo(() => {
+    return [...waitingQueue].sort(compareAppointmentsByTime);
+  }, [waitingQueue]);
 
   // Notification helper
   const flashNotice = (msg: string) => {
@@ -302,20 +307,20 @@ export function DoctorQueue() {
         {/* Waiting Queue Side Panel (1 column) */}
         <div className="space-y-4">
           <div className="p-5 rounded-xl bg-card border border-border space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
+            <div className="flex items-center justify-between pb-3 border-border border-b">
               <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
-                Waiting Lobby ({waitingQueue.length})
+                Waiting Lobby ({sortedWaitingQueue.length})
               </h2>
-              <span className="text-xs font-mono text-muted-foreground">FIFO Queue</span>
+              <span className="text-xs font-mono text-brand font-semibold">Sorted by Time</span>
             </div>
 
-            {waitingQueue.length === 0 ? (
+            {sortedWaitingQueue.length === 0 ? (
               <div className="py-8 text-center text-muted-foreground text-xs">
                 No patients waiting in queue.
               </div>
             ) : (
               <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                {waitingQueue.map((item, index) => (
+                {sortedWaitingQueue.map((item, index) => (
                   <div
                     key={item.id}
                     className="p-3.5 rounded-lg border border-border/80 bg-secondary/30 hover:bg-secondary/60 transition-colors space-y-2 text-xs"

@@ -51,7 +51,7 @@ export function PatientAppointments() {
       // Status filter
       let matchesFilter = true;
       if (filter === 'active') {
-        matchesFilter = appt.status === 'waiting' || appt.status === 'in-consultation';
+        matchesFilter = appt.status === 'waiting' || appt.status === 'in-consultation' || appt.status === 'scheduled';
       } else if (filter === 'completed') {
         matchesFilter = appt.status === 'completed';
       } else if (filter === 'cancelled') {
@@ -96,6 +96,13 @@ export function PatientAppointments() {
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
             Cancelled
+          </span>
+        );
+      case 'scheduled':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-brand/10 text-brand border border-brand/20">
+            <Calendar className="w-3 h-3" />
+            Scheduled
           </span>
         );
       default:
@@ -190,7 +197,7 @@ export function PatientAppointments() {
                   {/* Token Box */}
                   <div className="w-16 h-16 rounded-2xl bg-secondary border border-border flex flex-col items-center justify-center shrink-0 group-hover:bg-brand group-hover:text-white transition-colors duration-300">
                     <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Token</span>
-                    <span className="text-xl font-bold leading-none mt-0.5">{appt.tokenNumber}</span>
+                    <span className="text-xl font-bold leading-none mt-0.5">{appt.tokenNumber || 'A-01'}</span>
                   </div>
 
                   {/* Doctor & Appointment Details */}
@@ -247,7 +254,7 @@ export function PatientAppointments() {
                     Details
                   </button>
 
-                  {isWaitingOrConsulting && (
+                  {(isWaitingOrConsulting || appt.status === 'scheduled') && (
                     <button
                       onClick={() => setCancelTargetId(appt.id)}
                       className="px-3.5 py-2 text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 text-xs font-semibold rounded-xl transition-colors"
@@ -269,7 +276,9 @@ export function PatientAppointments() {
             <div className="flex items-center justify-between border-b border-border pb-4">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-brand">Appointment Slip</span>
-                <h3 className="text-xl font-bold text-foreground">Token {selectedAppt.tokenNumber}</h3>
+                <h3 className="text-xl font-bold text-foreground">
+                  Token {selectedAppt.tokenNumber || 'A-01'}
+                </h3>
               </div>
               <button
                 onClick={() => setSelectedAppt(null)}

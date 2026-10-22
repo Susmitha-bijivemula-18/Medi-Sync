@@ -1,0 +1,9 @@
+.vscode/
+node_modules/
+dist/
+target/
+*.log
+backend/data/
+*.mv.db
+*.trace.db
+.DS_Store

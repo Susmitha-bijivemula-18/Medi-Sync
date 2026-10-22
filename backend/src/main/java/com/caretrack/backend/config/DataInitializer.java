@@ -30,19 +30,22 @@ public class DataInitializer implements CommandLineRunner {
             seedDoctors();
         }
 
-        // Normalize future appointments: if appointment date is not today, reset token and mark as 'scheduled'
+        // Normalize future appointments: if appointment date is not today, ensure status is 'scheduled' without wiping token
         LocalDate today = LocalDate.now();
         List<Appointment> allAppts = appointmentRepository.findAll();
+        List<Appointment> toUpdate = new ArrayList<>();
         for (Appointment a : allAppts) {
             if (a.getAppointmentDate() != null && !a.getAppointmentDate().isEqual(today)) {
-                if ("in-consultation".equalsIgnoreCase(a.getStatus()) || "waiting".equalsIgnoreCase(a.getStatus()) || (a.getTokenNumber() != null && !a.getTokenNumber().isBlank())) {
+                if ("in-consultation".equalsIgnoreCase(a.getStatus()) || "waiting".equalsIgnoreCase(a.getStatus())) {
                     a.setStatus("scheduled");
                     a.setQueueStatus("scheduled");
-                    a.setTokenNumber("");
                     a.setCalledAt("");
-                    appointmentRepository.save(a);
+                    toUpdate.add(a);
                 }
             }
+        }
+        if (!toUpdate.isEmpty()) {
+            appointmentRepository.saveAll(toUpdate);
         }
     }
 

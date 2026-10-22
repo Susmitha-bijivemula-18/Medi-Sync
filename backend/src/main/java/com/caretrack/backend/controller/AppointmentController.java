@@ -63,6 +63,107 @@ public class AppointmentController {
         }
     }
 
+    private int parseTimeToMinutes(String timeStr) {
+        if (timeStr == null || timeStr.isBlank()) return 9999;
+        try {
+            String clean = timeStr.trim().toUpperCase();
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(\\d{1,2}):(\\d{2})(?::\\d{2})?\\s*(AM|PM)?$").matcher(clean);
+            if (m.matches()) {
+                int hours = Integer.parseInt(m.group(1));
+                int minutes = Integer.parseInt(m.group(2));
+                String meridiem = m.group(3);
+                if ("PM".equalsIgnoreCase(meridiem) && hours < 12) {
+                    hours += 12;
+                } else if ("AM".equalsIgnoreCase(meridiem) && hours == 12) {
+                    hours = 0;
+                }
+                return hours * 60 + minutes;
+            }
+        } catch (Exception ignored) {}
+        return 9999;
+    }
+
+    private final Comparator<Appointment> APPOINTMENT_TIME_COMPARATOR = (a, b) -> {
+        int timeA = parseTimeToMinutes(a.getAppointmentTime());
+        int timeB = parseTimeToMinutes(b.getAppointmentTime());
+        if (timeA != timeB) {
+            return Integer.compare(timeA, timeB);
+        }
+        if (a.getTokenNumber() != null && b.getTokenNumber() != null) {
+            return a.getTokenNumber().compareTo(b.getTokenNumber());
+        }
+        return 0;
+    };
+
+    public static String getDoctorTokenPrefix(String doctorName) {
+        if (doctorName == null || doctorName.isBlank()) return "OPD";
+        String clean = doctorName.replaceFirst("(?i)^Dr\\.?\\s*", "").trim();
+        String lower = clean.toLowerCase();
+
+        if (lower.startsWith("ananya")) return "A";
+        if (lower.startsWith("amit")) return "AP";
+        if (lower.startsWith("arjun")) return "AJ";
+        if (lower.startsWith("sneha")) return "S";
+        if (lower.startsWith("sanjay")) return "SD";
+        if (lower.startsWith("suresh")) return "SN";
+        if (lower.startsWith("priya")) return "PS";
+        if (lower.startsWith("pooja")) return "P";
+        if (lower.startsWith("ramesh")) return "R";
+        if (lower.startsWith("rajesh")) return "RG";
+        if (lower.startsWith("kavitha")) return "K";
+        if (lower.startsWith("deepa")) return "D";
+        if (lower.startsWith("meera")) return "M";
+        if (lower.startsWith("vikram")) return "V";
+        if (lower.startsWith("lakshmi")) return "L";
+        if (lower.startsWith("nisha")) return "N";
+
+        String[] parts = clean.split("\\s+");
+        if (parts.length >= 2) {
+            return ("" + parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+        }
+        return clean.substring(0, Math.min(2, clean.length())).toUpperCase();
+    }
+
+    private String generateUniqueTokenNumber(Doctor doctor, LocalDate appointmentDate, String requestedToken) {
+        String prefix = getDoctorTokenPrefix(doctor.getFullName());
+        List<Appointment> allOnDate = appointmentRepository.findByAppointmentDate(appointmentDate);
+        Set<String> usedTokensOnDate = allOnDate.stream()
+            .map(Appointment::getTokenNumber)
+            .filter(t -> t != null && !t.isBlank())
+            .map(String::trim)
+            .map(String::toUpperCase)
+            .collect(Collectors.toSet());
+
+        // If requested token is non-empty and NOT used on this date, accept it
+        if (requestedToken != null && !requestedToken.isBlank()) {
+            String cleanReq = requestedToken.trim().toUpperCase();
+            if (!usedTokensOnDate.contains(cleanReq)) {
+                return cleanReq;
+            }
+        }
+
+        // Find max sequence number for this prefix on this date
+        int maxSeq = 0;
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("^" + java.util.regex.Pattern.quote(prefix) + "-(\\d+)$");
+        for (String t : usedTokensOnDate) {
+            java.util.regex.Matcher m = pattern.matcher(t);
+            if (m.matches()) {
+                try {
+                    int seq = Integer.parseInt(m.group(1));
+                    if (seq > maxSeq) maxSeq = seq;
+                } catch (Exception ignored) {}
+            }
+        }
+
+        int nextSeq = maxSeq + 1;
+        String candidate = String.format("%s-%02d", prefix, nextSeq);
+        while (usedTokensOnDate.contains(candidate)) {
+            nextSeq++;
+            candidate = String.format("%s-%02d", prefix, nextSeq);
+        }
+        return candidate;
+    }
+
     // ─── Real-Time Server-Sent Events (SSE) Stream ───────────────────────────
     @GetMapping(value = "/queue/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamQueueUpdates() {
@@ -72,7 +173,57 @@ public class AppointmentController {
     // ─── 1. Get All Appointments ─────────────────────────────────────────────
     @GetMapping("/appointments")
     public List<Appointment> getAllAppointments() {
-        return appointmentRepository.findAllByOrderByCreatedAtDesc();
+        List<Appointment> list = appointmentRepository.findAll();
+        boolean hasUpdates = false;
+
+        // Group by appointmentDate and ensure every appointment has a UNIQUE token without duplicates
+        Map<LocalDate, Set<String>> usedByDate = new HashMap<>();
+        for (Appointment a : list) {
+            if (a.getAppointmentDate() == null || a.getDoctor() == null) continue;
+            LocalDate d = a.getAppointmentDate();
+            usedByDate.computeIfAbsent(d, k -> new HashSet<>());
+
+            String currentToken = a.getTokenNumber() != null ? a.getTokenNumber().trim().toUpperCase() : "";
+            // If token is missing or is already duplicate on this date
+            if (currentToken.isBlank() || usedByDate.get(d).contains(currentToken)) {
+                String prefix = getDoctorTokenPrefix(a.getDoctor().getFullName());
+                int maxSeq = 0;
+                java.util.regex.Pattern p = java.util.regex.Pattern.compile("^" + java.util.regex.Pattern.quote(prefix) + "-(\\d+)$");
+                for (String t : usedByDate.get(d)) {
+                    java.util.regex.Matcher m = p.matcher(t);
+                    if (m.matches()) {
+                        try {
+                            int seq = Integer.parseInt(m.group(1));
+                            if (seq > maxSeq) maxSeq = seq;
+                        } catch (Exception ignored) {}
+                    }
+                }
+                int nextSeq = maxSeq + 1;
+                String uniqueToken = String.format("%s-%02d", prefix, nextSeq);
+                while (usedByDate.get(d).contains(uniqueToken)) {
+                    nextSeq++;
+                    uniqueToken = String.format("%s-%02d", prefix, nextSeq);
+                }
+                a.setTokenNumber(uniqueToken);
+                usedByDate.get(d).add(uniqueToken);
+                hasUpdates = true;
+            } else {
+                usedByDate.get(d).add(currentToken);
+            }
+        }
+        if (hasUpdates) {
+            try {
+                appointmentRepository.saveAll(list);
+            } catch (Exception ignored) {}
+        }
+        list.sort((a, b) -> {
+            if (a.getAppointmentDate() != null && b.getAppointmentDate() != null) {
+                int dateComp = b.getAppointmentDate().compareTo(a.getAppointmentDate());
+                if (dateComp != 0) return dateComp;
+            }
+            return APPOINTMENT_TIME_COMPARATOR.compare(a, b);
+        });
+        return list;
     }
 
     // ─── 2. Create Appointment (Patient Booking with Validation & Anti-Double-Booking)
@@ -182,29 +333,20 @@ public class AppointmentController {
             } catch (Exception ignored) {}
         }
 
-        // Generate token only if appointment date is TODAY
+        // Determine guaranteed unique token number for this appointment date
         boolean isToday = appointment.getAppointmentDate().isEqual(today);
 
-        String tokenNumber = "";
-        String status = "scheduled";
-        String queueStatus = "scheduled";
-
-        if (isToday) {
-            if (payload.get("tokenNumber") != null && !payload.get("tokenNumber").toString().isBlank()) {
-                tokenNumber = payload.get("tokenNumber").toString().trim();
-            } else if (payload.get("token_number") != null && !payload.get("token_number").toString().isBlank()) {
-                tokenNumber = payload.get("token_number").toString().trim();
-            } else {
-                String cleanName = doctor.getFullName().replaceFirst("(?i)^Dr\\.?\\s*", "").trim();
-                char prefix = Character.toUpperCase(cleanName.isEmpty() ? 'A' : cleanName.charAt(0));
-                long countToday = existingBookings.stream()
-                    .filter(a -> a.getTokenNumber() != null && !a.getTokenNumber().isBlank())
-                    .count() + 1;
-                tokenNumber = String.format("%c-%02d", prefix, countToday);
-            }
-            status = "waiting";
-            queueStatus = "waiting";
+        String reqToken = null;
+        if (payload.get("tokenNumber") != null && !payload.get("tokenNumber").toString().isBlank()) {
+            reqToken = payload.get("tokenNumber").toString().trim();
+        } else if (payload.get("token_number") != null && !payload.get("token_number").toString().isBlank()) {
+            reqToken = payload.get("token_number").toString().trim();
         }
+
+        String tokenNumber = generateUniqueTokenNumber(doctor, appointment.getAppointmentDate(), reqToken);
+
+        String status = isToday ? "waiting" : "scheduled";
+        String queueStatus = isToday ? "waiting" : "scheduled";
 
         appointment.setTokenNumber(tokenNumber);
         appointment.setStatus(status);
@@ -230,7 +372,14 @@ public class AppointmentController {
     public ResponseEntity<?> getDoctorAppointments(@PathVariable String doctorId) {
         UUID docUuid = resolveDoctorId(doctorId);
         if (docUuid == null) return ResponseEntity.ok(Collections.emptyList());
-        List<Appointment> list = appointmentRepository.findByDoctorIdOrderByCreatedAtDesc(docUuid);
+        List<Appointment> list = new ArrayList<>(appointmentRepository.findByDoctorIdOrderByCreatedAtDesc(docUuid));
+        list.sort((a, b) -> {
+            if (a.getAppointmentDate() != null && b.getAppointmentDate() != null) {
+                int dateComp = b.getAppointmentDate().compareTo(a.getAppointmentDate());
+                if (dateComp != 0) return dateComp;
+            }
+            return APPOINTMENT_TIME_COMPARATOR.compare(a, b);
+        });
         return ResponseEntity.ok(list);
     }
 
@@ -238,9 +387,10 @@ public class AppointmentController {
     public ResponseEntity<?> getDoctorTodayAppointments(@PathVariable String doctorId) {
         UUID docUuid = resolveDoctorId(doctorId);
         if (docUuid == null) return ResponseEntity.ok(Collections.emptyList());
-        List<Appointment> list = appointmentRepository.findByDoctorIdAndAppointmentDateOrderByCreatedAtAsc(
+        List<Appointment> list = new ArrayList<>(appointmentRepository.findByDoctorIdAndAppointmentDateOrderByCreatedAtAsc(
             docUuid, LocalDate.now()
-        );
+        ));
+        list.sort(APPOINTMENT_TIME_COMPARATOR);
         return ResponseEntity.ok(list);
     }
 
@@ -256,7 +406,7 @@ public class AppointmentController {
             ));
         }
 
-        // Live Queue ONLY serves today's appointments
+        // Live Queue ONLY serves today's appointments sorted by timing
         LocalDate today = LocalDate.now();
         List<Appointment> allToday = appointmentRepository.findByDoctorIdAndAppointmentDateOrderByCreatedAtAsc(docUuid, today);
 
@@ -267,10 +417,12 @@ public class AppointmentController {
 
         List<Appointment> waitingQueue = allToday.stream()
             .filter(a -> "waiting".equalsIgnoreCase(a.getStatus()))
+            .sorted(APPOINTMENT_TIME_COMPARATOR)
             .toList();
 
         List<Appointment> completedToday = allToday.stream()
             .filter(a -> "completed".equalsIgnoreCase(a.getStatus()))
+            .sorted(APPOINTMENT_TIME_COMPARATOR)
             .toList();
 
         return ResponseEntity.ok(Map.of(
@@ -306,9 +458,10 @@ public class AppointmentController {
             appointmentRepository.save(current);
         }
 
-        // Find next waiting patient
+        // Find next waiting patient ordered by appointment timing
         Optional<Appointment> nextWaitingOpt = allToday.stream()
             .filter(a -> "waiting".equalsIgnoreCase(a.getStatus()))
+            .sorted(APPOINTMENT_TIME_COMPARATOR)
             .findFirst();
 
         if (nextWaitingOpt.isEmpty()) {

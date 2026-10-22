@@ -22,5 +22,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
 
     List<Appointment> findByPatientPhoneOrPatientEmailOrderByCreatedAtDesc(String patientPhone, String patientEmail);
 
+    List<Appointment> findByAppointmentDate(LocalDate appointmentDate);
+
     Optional<Appointment> findByTokenNumber(String tokenNumber);
 }

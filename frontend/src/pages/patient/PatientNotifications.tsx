@@ -46,14 +46,35 @@ export function PatientNotifications() {
       ];
     }
 
+    const dTomorrow = new Date();
+    dTomorrow.setDate(dTomorrow.getDate() + 1);
+    const tomorrowStr = `${dTomorrow.getFullYear()}-${String(dTomorrow.getMonth() + 1).padStart(2, '0')}-${String(dTomorrow.getDate()).padStart(2, '0')}`;
+
     const generated: NotificationItem[] = [];
 
     all.forEach((appt, idx) => {
-      // 1. Booking notification
+      const cleanDoc = (appt.doctorName || 'Doctor').replace(/^Dr\.?\s*/i, '').trim();
+      const prefix = (cleanDoc[0] || 'A').toUpperCase();
+      const token = appt.tokenNumber || `${prefix}-01`;
+      const isTomorrow = appt.appointmentDate === tomorrowStr;
+
+      // 1. Tomorrow Appointment Reminder
+      if (isTomorrow) {
+        generated.unshift({
+          id: `notif-tomorrow-${appt.id}`,
+          title: `Upcoming Visit Tomorrow: ${appt.doctorName}`,
+          message: `You have an appointment scheduled for tomorrow (${appt.appointmentDate}) at ${appt.appointmentTime}. Your confirmed Token is ${token}.`,
+          timestamp: 'Tomorrow at ' + appt.appointmentTime,
+          type: 'schedule',
+          read: false,
+        });
+      }
+
+      // 2. Booking confirmed notification
       generated.push({
         id: `notif-book-${appt.id}`,
-        title: `Token ${appt.tokenNumber} Confirmed`,
-        message: `Your consultation with ${appt.doctorName} (${appt.specialization}) is confirmed for ${appt.appointmentDate} at ${appt.appointmentTime}.`,
+        title: `Appointment Confirmed: Token ${token}`,
+        message: `Your consultation with ${appt.doctorName} (${appt.specialization}) is confirmed for ${isTomorrow ? 'tomorrow (' + appt.appointmentDate + ')' : appt.appointmentDate} at ${appt.appointmentTime}. Token: ${token}.`,
         timestamp: `${idx * 15 + 5}m ago`,
         type: 'appointment',
         read: idx > 0,

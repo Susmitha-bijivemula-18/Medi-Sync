@@ -7,6 +7,7 @@ import {
   completeConsultation,
   cancelAppointment,
   initQueueSync, 
+  compareAppointmentsByTime,
   type QueueAppointment 
 } from '../../lib/queueStore';
 import { HospitalMapModal } from '../../components/common/HospitalMapModal';
@@ -59,6 +60,11 @@ export function DoctorAppointments() {
       }
 
       return matchesSearch && matchesStatus && matchesDate;
+    }).sort((a, b) => {
+      if (a.appointmentDate && b.appointmentDate && a.appointmentDate !== b.appointmentDate) {
+        return a.appointmentDate.localeCompare(b.appointmentDate);
+      }
+      return compareAppointmentsByTime(a, b);
     });
   }, [appointments, searchQuery, statusFilter, dateFilter, todayStr]);
 
