@@ -85,6 +85,9 @@ public class Appointment {
     @Column(name = "completed_at")
     private String completedAt = "";
 
+    @Column(name = "travel_duration_minutes")
+    private Integer travelDurationMinutes = 30;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -162,6 +165,9 @@ public class Appointment {
 
     public String getCompletedAt() { return completedAt; }
     public void setCompletedAt(String completedAt) { this.completedAt = completedAt; }
+
+    public Integer getTravelDurationMinutes() { return travelDurationMinutes != null ? travelDurationMinutes : 30; }
+    public void setTravelDurationMinutes(Integer travelDurationMinutes) { this.travelDurationMinutes = travelDurationMinutes; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

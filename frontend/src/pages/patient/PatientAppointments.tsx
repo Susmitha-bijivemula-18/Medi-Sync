@@ -17,6 +17,7 @@ import {
   initQueueSync, 
   type QueueAppointment 
 } from '../../lib/queueStore';
+import { SmartArrivalCard } from '../../components/common/SmartArrivalCard';
 
 export function PatientAppointments() {
   const navigate = useNavigate();
@@ -301,6 +302,14 @@ export function PatientAppointments() {
                   <p className="text-muted-foreground">{selectedAppt.appointmentTime}</p>
                 </div>
               </div>
+
+              {/* MediSync Smart Arrival Dynamic Departure Window */}
+              {selectedAppt.status !== 'cancelled' && (
+                <SmartArrivalCard
+                  appointment={selectedAppt}
+                  onRefresh={() => setAppointments(loadAllAppointments())}
+                />
+              )}
 
               <div>
                 <span className="text-muted-foreground block text-[10px] uppercase font-bold mb-1">Reason / Symptoms</span>

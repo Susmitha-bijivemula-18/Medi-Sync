@@ -34,11 +34,18 @@ export function DoctorDashboard() {
       setQueueData(getLiveQueueForDoctor(doctorId, doctorName));
       setSchedule(getDoctorScheduleSettings(doctorId));
     };
+
     window.addEventListener('medisync:queue-update', refresh);
     window.addEventListener('caretrack:queue-update', refresh);
+    window.addEventListener('storage', refresh);
+
+    const timer = setInterval(refresh, 2500);
+
     return () => {
       window.removeEventListener('medisync:queue-update', refresh);
       window.removeEventListener('caretrack:queue-update', refresh);
+      window.removeEventListener('storage', refresh);
+      clearInterval(timer);
     };
   }, [doctorId, doctorName]);
 

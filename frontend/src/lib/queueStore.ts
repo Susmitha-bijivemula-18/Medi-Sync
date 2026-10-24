@@ -4,6 +4,8 @@ import {
   callNextPatientApi, 
   updateAppointmentStatusApi, 
   updateDoctorScheduleApi,
+  updateTravelDurationApi,
+  type SmartArrivalData,
   API_BASE_URL 
 } from './supabase';
 import { mockDoctors } from './doctors';
@@ -11,6 +13,7 @@ import { getCurrentDoctor } from './doctorAuth';
 
 export interface QueueAppointment {
   id: string;
+  patientId?: string;
   tokenNumber: string;
   patientName: string;
   patientAge: number;
@@ -26,6 +29,7 @@ export interface QueueAppointment {
   problemDescription: string;
   problemCategory: string;
   status: 'waiting' | 'in-consultation' | 'completed' | 'skipped' | 'cancelled' | 'scheduled';
+  travelDurationMinutes?: number;
   vitals?: {
     bp: string;
     pulse: string;
@@ -42,7 +46,7 @@ export interface DoctorScheduleSettings {
   doctorId: string;
   workingDays: string[];
   startTime: string; // "09:00"
-  endTime: string; // "17:00"
+  endTime: string; // "21:00"
   slotDuration: number; // minutes: 15, 20, 30
   breakStart: string; // "13:00"
   breakEnd: string; // "14:00"
@@ -142,6 +146,48 @@ export function compareAppointmentsByTime(
 // ─── Real-Time Server-Sent Events (SSE) Listener ────────────────────────────
 let sseConnection: EventSource | null = null;
 let pollTimer: any = null;
+let isLiveConnected = false;
+let lastSuccessfulSync: Date | null = null;
+
+export function getSystemSyncStatus(): { isConnected: boolean; lastSyncTime: string | null } {
+  const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+  const sseActive = Boolean(sseConnection && sseConnection.readyState === EventSource.OPEN);
+  return {
+    isConnected: isOnline && (sseActive || isLiveConnected),
+    lastSyncTime: lastSuccessfulSync ? lastSuccessfulSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
+  };
+}
+
+let crossTabChannel: BroadcastChannel | null = null;
+function getCrossTabChannel(): BroadcastChannel | null {
+  if (typeof window === 'undefined' || typeof BroadcastChannel === 'undefined') return null;
+  if (!crossTabChannel) {
+    try {
+      crossTabChannel = new BroadcastChannel('medisync:cross-tab-sync');
+      crossTabChannel.onmessage = (event) => {
+        try {
+          if (event.data?.type === 'QUEUE_UPDATE') {
+            window.dispatchEvent(new CustomEvent('medisync:queue-update', { detail: event.data.detail }));
+            window.dispatchEvent(new CustomEvent('caretrack:queue-update', { detail: event.data.detail }));
+          }
+        } catch {}
+      };
+    } catch {}
+  }
+  return crossTabChannel;
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (!e.key || e.key === QUEUE_STORAGE_KEY) {
+      try {
+        window.dispatchEvent(new Event('medisync:queue-update'));
+        window.dispatchEvent(new Event('caretrack:queue-update'));
+      } catch {}
+    }
+  });
+  getCrossTabChannel();
+}
 
 export function dispatchQueueUpdate(detail?: any) {
   try {
@@ -151,6 +197,11 @@ export function dispatchQueueUpdate(detail?: any) {
     } else {
       window.dispatchEvent(new Event('medisync:queue-update'));
       window.dispatchEvent(new Event('caretrack:queue-update'));
+    }
+
+    const channel = getCrossTabChannel();
+    if (channel) {
+      channel.postMessage({ type: 'QUEUE_UPDATE', detail });
     }
   } catch {}
 }
@@ -165,8 +216,16 @@ export function initQueueSync(doctorId?: string) {
     try {
       sseConnection = new EventSource(`${API_BASE_URL}/queue/stream`);
 
+      sseConnection.onopen = () => {
+        isLiveConnected = true;
+        lastSuccessfulSync = new Date();
+        dispatchQueueUpdate({ type: 'SYNC_CONNECTED' });
+      };
+
       sseConnection.addEventListener('queue-update', (event) => {
         try {
+          isLiveConnected = true;
+          lastSuccessfulSync = new Date();
           const detail = JSON.parse((event as MessageEvent).data);
           syncQueueFromBackend(doctorId || detail.doctorId);
           dispatchQueueUpdate(detail);
@@ -177,11 +236,14 @@ export function initQueueSync(doctorId?: string) {
       });
 
       sseConnection.addEventListener('schedule-update', () => {
+        isLiveConnected = true;
+        lastSuccessfulSync = new Date();
         syncQueueFromBackend(doctorId);
         dispatchQueueUpdate();
       });
 
       sseConnection.onerror = () => {
+        isLiveConnected = false;
         // Fallback polling if SSE is reconnecting
         if (!pollTimer) {
           pollTimer = setInterval(() => {
@@ -190,6 +252,7 @@ export function initQueueSync(doctorId?: string) {
         }
       };
     } catch (e) {
+      isLiveConnected = false;
       console.warn('SSE connection initialization error, using polling', e);
       if (!pollTimer) {
         pollTimer = setInterval(() => {
@@ -204,6 +267,8 @@ export function initQueueSync(doctorId?: string) {
 export async function syncQueueFromBackend(doctorId?: string): Promise<void> {
   try {
     const allDbAppts = await fetchAppointments();
+    lastSuccessfulSync = new Date();
+    isLiveConnected = true;
 
     if (allDbAppts && Array.isArray(allDbAppts)) {
       // Purge any dummy records like 'Test Patient' or 'Ramesh Verma'
@@ -229,6 +294,7 @@ export async function syncQueueFromBackend(doctorId?: string): Promise<void> {
 
         return {
           id: a.id,
+          patientId: a.patientId || a.patient_id || '',
           tokenNumber,
           patientName: a.patientName || 'Patient',
           patientAge: a.patientAge || 30,
@@ -599,9 +665,9 @@ export function getDoctorScheduleSettings(doctorId: string): DoctorScheduleSetti
 
   return {
     doctorId,
-    workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+    workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
     startTime: '09:00',
-    endTime: '17:00',
+    endTime: '21:00',
     slotDuration: 20,
     breakStart: '13:00',
     breakEnd: '14:00',
@@ -710,6 +776,7 @@ export function getPatientQueueStatus(tokenNumber?: string): {
 
 // ─── Record New Booking (Bridge between Patient Booking and Doctor Portal) ───
 export function recordNewBooking(data: {
+  patientId?: string;
   patientName: string;
   patientAge?: number;
   patientPhone?: string;
@@ -762,6 +829,7 @@ export function recordNewBooking(data: {
 
   const newAppt: QueueAppointment = {
     id: data.id || ('apt-' + Date.now()),
+    patientId: data.patientId || '',
     tokenNumber,
     patientName: data.patientName || 'Patient',
     patientAge: data.patientAge || 30,
@@ -817,3 +885,197 @@ export async function checkInPatient(appointmentId: string): Promise<string> {
   saveAllAppointments(all);
   return generatedToken;
 }
+
+// ─── Smart Arrival Operations & Calculations ────────────────────────────────
+
+export function formatMinutesToTime(totalMinutes: number): string {
+  let mins = Math.max(0, Math.round(totalMinutes) % (24 * 60));
+  let hours = Math.floor(mins / 60);
+  const m = mins % 60;
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  if (hours === 0) hours = 12;
+  return `${String(hours).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+export function calculateLocalSmartArrival(
+  appt: QueueAppointment,
+  queueState?: { patientsAhead?: number; estimatedWait?: number; currentToken?: string; isCurrentTurn?: boolean } | null,
+  overrideTravelMinutes?: number
+): SmartArrivalData {
+  const isToday = appt.appointmentDate === getTodayDateString();
+  const scheduledMinutes = parseTimeToMinutes(appt.appointmentTime || '10:00 AM');
+  const arrivalBufferMinutes = 15;
+  const clinicRequiredMinutes = Math.max(0, scheduledMinutes - arrivalBufferMinutes);
+
+  const travelMinutes = overrideTravelMinutes ?? appt.travelDurationMinutes ?? 30;
+
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  let patientsAhead = queueState?.patientsAhead ?? 0;
+  let estimatedDoctorReadyMinutes = scheduledMinutes;
+  let doctorDelayMinutes = 0;
+  let departureStatus: SmartArrivalData['departureStatus'] = 'ON_TRACK';
+  let reliability: SmartArrivalData['reliability'] = 'HIGH';
+  let isReliable = true;
+  let uncertaintyMinutes = 8;
+  let explanation = '';
+
+  if (appt.status === 'in-consultation' || queueState?.isCurrentTurn) {
+    departureStatus = 'IN_CONSULTATION';
+    estimatedDoctorReadyMinutes = nowMinutes;
+    patientsAhead = 0;
+    uncertaintyMinutes = 0;
+    reliability = 'HIGH';
+    explanation = `You are currently in consultation with ${appt.doctorName}.`;
+  } else if (appt.status === 'completed') {
+    departureStatus = 'COMPLETED';
+    estimatedDoctorReadyMinutes = scheduledMinutes;
+    uncertaintyMinutes = 0;
+    reliability = 'HIGH';
+    explanation = `Consultation with ${appt.doctorName} is completed.`;
+  } else if (!isToday) {
+    departureStatus = 'SCHEDULED_STANDBY';
+    estimatedDoctorReadyMinutes = scheduledMinutes;
+    doctorDelayMinutes = 0;
+    uncertaintyMinutes = 15;
+    reliability = 'INSUFFICIENT_DATA';
+    isReliable = false;
+    explanation = `Your appointment is on ${appt.appointmentDate}. Live queue tracking activates on the morning of your visit. Please arrive by ${formatMinutesToTime(clinicRequiredMinutes)} (15 min check-in buffer).`;
+  } else {
+    // Today's active queue
+    const waitMinutes = queueState?.estimatedWait !== undefined ? queueState.estimatedWait : Math.max(5, patientsAhead * 15);
+    estimatedDoctorReadyMinutes = nowMinutes + waitMinutes;
+    doctorDelayMinutes = Math.max(0, estimatedDoctorReadyMinutes - scheduledMinutes);
+
+    const targetArrivalMinutes = doctorDelayMinutes >= 15
+      ? Math.max(clinicRequiredMinutes, estimatedDoctorReadyMinutes - arrivalBufferMinutes)
+      : clinicRequiredMinutes;
+
+    const recommendedDepartureMinutes = targetArrivalMinutes - travelMinutes;
+    const minutesUntilDeparture = recommendedDepartureMinutes - nowMinutes;
+
+    if (minutesUntilDeparture < -15) {
+      departureStatus = 'ARRIVED';
+    } else if (minutesUntilDeparture <= 0) {
+      departureStatus = 'DEPART_NOW';
+    } else if (minutesUntilDeparture <= 15) {
+      departureStatus = 'LEAVE_SOON';
+    } else if (minutesUntilDeparture <= 45) {
+      departureStatus = 'ON_TRACK';
+    } else {
+      departureStatus = 'PLENTY_OF_TIME';
+    }
+
+    if (patientsAhead <= 1) {
+      uncertaintyMinutes = 5;
+      reliability = 'HIGH';
+      explanation = doctorDelayMinutes >= 15
+        ? `${appt.doctorName} is running ~${doctorDelayMinutes}m late. With ${patientsAhead} patient ahead, recommended departure is ${formatMinutesToTime(recommendedDepartureMinutes - 5)} – ${formatMinutesToTime(recommendedDepartureMinutes + 5)}.`
+        : `${appt.doctorName} is on schedule. You have ${patientsAhead} patient ahead. Depart between ${formatMinutesToTime(recommendedDepartureMinutes - 5)} – ${formatMinutesToTime(recommendedDepartureMinutes + 5)}.`;
+    } else if (patientsAhead <= 4) {
+      uncertaintyMinutes = 8;
+      reliability = 'HIGH';
+      explanation = `Queue is active with ${patientsAhead} patients ahead of Token ${appt.tokenNumber}. Recommended departure: ${formatMinutesToTime(recommendedDepartureMinutes - 5)} – ${formatMinutesToTime(recommendedDepartureMinutes + 5)}.`;
+    } else {
+      uncertaintyMinutes = 12;
+      reliability = 'MEDIUM';
+      explanation = `Queue is busy with ${patientsAhead} patients ahead. Anticipated doctor ready time: ${formatMinutesToTime(estimatedDoctorReadyMinutes)} (±${uncertaintyMinutes}m). Departure: ${formatMinutesToTime(recommendedDepartureMinutes - 5)} – ${formatMinutesToTime(recommendedDepartureMinutes + 5)}.`;
+    }
+  }
+
+  const targetArrivalMinutes = doctorDelayMinutes >= 15
+    ? Math.max(clinicRequiredMinutes, estimatedDoctorReadyMinutes - arrivalBufferMinutes)
+    : clinicRequiredMinutes;
+  const targetDepartureMinutes = targetArrivalMinutes - travelMinutes;
+
+  return {
+    appointmentId: appt.id,
+    patientName: appt.patientName,
+    doctorId: appt.doctorId,
+    doctorName: appt.doctorName,
+    specialization: appt.specialization,
+    tokenNumber: appt.tokenNumber,
+    appointmentDate: appt.appointmentDate,
+    appointmentTime: appt.appointmentTime,
+    status: appt.status,
+    queuePosition: patientsAhead + 1,
+    patientsAhead,
+    currentlyServingToken: queueState?.currentToken || '--',
+    travelDurationMinutes: travelMinutes,
+    arrivalBufferMinutes,
+    avgConsultationMinutes: 18,
+    doctorDelayMinutes,
+    estimatedDoctorReadyTime: formatMinutesToTime(estimatedDoctorReadyMinutes),
+    clinicRequiredArrivalTime: formatMinutesToTime(clinicRequiredMinutes),
+    targetArrivalTime: formatMinutesToTime(targetArrivalMinutes),
+    departureWindowStart: formatMinutesToTime(targetDepartureMinutes - 5),
+    departureWindowEnd: formatMinutesToTime(targetDepartureMinutes + 5),
+    departureStatus,
+    minutesUntilDeparture: targetDepartureMinutes - nowMinutes,
+    uncertaintyMinutes,
+    reliability,
+    isReliable,
+    explanation,
+    clinicPolicyNotice: 'MediSync Safety Policy: Departure times are dynamic estimates based on live queue pacing. Clinical triage & emergency cases always take priority. Please arrive at least 15 minutes before your consultation.',
+    lastCalculatedAt: new Date().toISOString(),
+  };
+}
+
+export async function updateAppointmentTravelDuration(
+  appointmentId: string,
+  travelDurationMinutes: number
+): Promise<SmartArrivalData | null> {
+  const all = loadAllAppointments();
+  const target = all.find((a) => a.id === appointmentId);
+  if (target) {
+    target.travelDurationMinutes = travelDurationMinutes;
+    saveAllAppointments(all);
+    dispatchQueueUpdate({ action: 'TRAVEL_DURATION_UPDATED', appointmentId, travelDurationMinutes });
+  }
+
+  try {
+    const res = await updateTravelDurationApi(appointmentId, travelDurationMinutes);
+    if (res) {
+      dispatchQueueUpdate({ action: 'SMART_ARRIVAL_SYNC', data: res });
+      return res;
+    }
+  } catch {}
+
+  if (target) {
+    return calculateLocalSmartArrival(target, null, travelDurationMinutes);
+  }
+  return null;
+}
+
+export function checkAndTriggerSmartArrivalAlert(smartArrival: SmartArrivalData): void {
+  if (typeof window === 'undefined') return;
+  if (smartArrival.departureStatus !== 'LEAVE_SOON' && smartArrival.departureStatus !== 'DEPART_NOW') return;
+
+  const storageKey = `medisync_departure_alert_${smartArrival.appointmentId}_${smartArrival.departureStatus}`;
+  if (sessionStorage.getItem(storageKey)) return;
+
+  try {
+    const raw = localStorage.getItem('caretrack_patient_notifications');
+    const existing = raw ? JSON.parse(raw) : [];
+
+    const isUrgent = smartArrival.departureStatus === 'DEPART_NOW';
+    const notif = {
+      id: `smart-arrival-${smartArrival.appointmentId}-${Date.now()}`,
+      title: isUrgent
+        ? `Smart Arrival: Depart Now for ${smartArrival.doctorName}`
+        : `Smart Arrival: Departure Window Approaching`,
+      message: `Recommended departure is ${smartArrival.departureWindowStart} – ${smartArrival.departureWindowEnd} based on current queue (${smartArrival.patientsAhead} patients ahead). Travel duration: ${smartArrival.travelDurationMinutes}m.`,
+      timestamp: 'Just now',
+      type: 'queue',
+      read: false,
+    };
+
+    existing.unshift(notif);
+    localStorage.setItem('caretrack_patient_notifications', JSON.stringify(existing.slice(0, 30)));
+    sessionStorage.setItem(storageKey, 'true');
+    window.dispatchEvent(new Event('medisync:notification-update'));
+  } catch {}
+}
+

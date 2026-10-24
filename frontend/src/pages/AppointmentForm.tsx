@@ -64,6 +64,7 @@ export function AppointmentForm() {
   const [bookingError, setBookingError] = useState<string | null>(null);
 
   // Patient inputs - No hardcoded dummy data; check if logged in patient exists
+  const [patientId, setPatientId] = useState<string>('');
   const [patientName, setPatientName] = useState('');
   const [patientAge, setPatientAge] = useState<string>('');
   const [bloodGroup, setBloodGroup] = useState<string>('O+');
@@ -77,6 +78,7 @@ export function AppointmentForm() {
     getCurrentUser()
       .then((activeUser) => {
         if (activeUser?.user) {
+          if (activeUser.user.id) setPatientId(String(activeUser.user.id));
           if (activeUser.user.name) setPatientName(activeUser.user.name);
           if (activeUser.user.email) setPatientEmail(activeUser.user.email);
           if (activeUser.user.phone) setPatientPhone(activeUser.user.phone);
@@ -116,11 +118,11 @@ export function AppointmentForm() {
     ];
   }, []);
 
-  // Set default selected date: if current time is after 5 PM (17:00), default to Tomorrow
+  // Set default selected date: if current time is after 9 PM (21:00), default to Tomorrow
   useEffect(() => {
     if (!selectedDate && dates.length > 0) {
       const now = new Date();
-      if (now.getHours() >= 17 && dates.length > 1) {
+      if (now.getHours() >= 21 && dates.length > 1) {
         setSelectedDate(dates[1].id);
       } else {
         setSelectedDate(dates[0].id);
@@ -160,11 +162,23 @@ export function AppointmentForm() {
       '10:30 AM',
       '11:00 AM',
       '11:30 AM',
+      '12:00 PM',
+      '12:30 PM',
       '02:00 PM',
       '02:30 PM',
       '03:00 PM',
       '03:30 PM',
       '04:00 PM',
+      '04:30 PM',
+      '05:00 PM',
+      '05:30 PM',
+      '06:00 PM',
+      '06:30 PM',
+      '07:00 PM',
+      '07:30 PM',
+      '08:00 PM',
+      '08:30 PM',
+      '09:00 PM',
     ];
 
     return rawSlots.map((time) => {
@@ -250,8 +264,9 @@ export function AppointmentForm() {
     const docPrefix = getDoctorTokenPrefix(doctor.full_name);
 
     try {
-      // 1. Persist directly to backend database
+      // 1. Persist directly to backend database with explicit doctor & patient link
       const result = await createAppointment({
+        patient_id: patientId || undefined,
         patient_name: patientName.trim(),
         patient_age: Number(patientAge) || 30,
         patient_email: patientEmail.trim(),
@@ -268,9 +283,10 @@ export function AppointmentForm() {
       const issuedToken = result?.tokenNumber || `${docPrefix}-01`;
       setTokenNumber(issuedToken);
 
-      // 2. Synchronize shared queueStore
+      // 2. Synchronize shared queueStore with explicit doctor & patient link
       recordNewBooking({
         id: result?.id || ('apt-' + Date.now()),
+        patientId: (result as any)?.patientId || patientId || undefined,
         patientName: patientName.trim(),
         patientAge: Number(patientAge) || 30,
         patientEmail: patientEmail.trim(),
@@ -560,9 +576,9 @@ export function AppointmentForm() {
                   <h3 className="text-lg font-heading font-semibold">Select Consultation Date</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">Choose an upcoming clinic working day</p>
                 </div>
-                {new Date().getHours() >= 17 && (
+                {new Date().getHours() >= 21 && (
                   <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/20">
-                    Today's outpatient hours (9 AM - 5 PM) closed
+                    Today's outpatient hours (9 AM - 9 PM) closed
                   </span>
                 )}
               </div>
@@ -571,7 +587,7 @@ export function AppointmentForm() {
                 {dates.map((d) => {
                   const isSelected = selectedDate === d.id;
                   const isToday = d.id === getTodayDateString();
-                  const isPastClosing = isToday && new Date().getHours() >= 17;
+                  const isPastClosing = isToday && new Date().getHours() >= 21;
 
                   return (
                     <button
@@ -598,7 +614,7 @@ export function AppointmentForm() {
                           Hours Ended
                         </span>
                       )}
-                      {!isToday && d.label === 'Tomorrow' && new Date().getHours() >= 17 && (
+                      {!isToday && d.label === 'Tomorrow' && new Date().getHours() >= 21 && (
                         <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold mt-1.5">
                           Recommended
                         </span>
@@ -658,7 +674,7 @@ export function AppointmentForm() {
                         Today's Outpatient Hours Have Ended
                       </span>
                       <p className="text-muted-foreground mt-0.5">
-                        All consultation slots for today (9:00 AM – 5:00 PM) have already passed. Please select tomorrow or an upcoming date.
+                        All consultation slots for today (9:00 AM – 9:00 PM) have already passed. Please select tomorrow or an upcoming date.
                       </p>
                     </div>
                   </div>

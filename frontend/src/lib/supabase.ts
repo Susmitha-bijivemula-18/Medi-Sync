@@ -123,6 +123,8 @@ export async function fetchDoctorsBySpecialization(specialization: string): Prom
 // ─── Appointment operations ──────────────────────────────────────────────────
 
 export async function createAppointment(appointment: {
+  patient_id?: string;
+  patientId?: string;
   patient_name: string;
   patient_age: number;
   patient_email: string;
@@ -136,6 +138,7 @@ export async function createAppointment(appointment: {
   location?: string;
 }): Promise<Appointment> {
   const payload = {
+    patientId: appointment.patient_id || appointment.patientId || '',
     patientName: appointment.patient_name,
     patientAge: appointment.patient_age,
     patientEmail: appointment.patient_email,
@@ -395,3 +398,75 @@ export async function getCurrentUser() {
   }
   return null;
 }
+
+// ─── Smart Arrival Operations ───────────────────────────────────────────────
+
+export interface SmartArrivalData {
+  appointmentId: string;
+  patientName: string;
+  doctorId: string;
+  doctorName: string;
+  specialization: string;
+  tokenNumber: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  status: string;
+  queuePosition: number;
+  patientsAhead: number;
+  currentlyServingToken: string;
+  travelDurationMinutes: number;
+  arrivalBufferMinutes: number;
+  avgConsultationMinutes: number;
+  doctorDelayMinutes: number;
+  estimatedDoctorReadyTime: string;
+  clinicRequiredArrivalTime: string;
+  targetArrivalTime: string;
+  departureWindowStart: string;
+  departureWindowEnd: string;
+  departureStatus: 'DEPART_NOW' | 'LEAVE_SOON' | 'ON_TRACK' | 'PLENTY_OF_TIME' | 'IN_CONSULTATION' | 'COMPLETED' | 'SCHEDULED_STANDBY' | 'ARRIVED';
+  minutesUntilDeparture: number;
+  uncertaintyMinutes: number;
+  reliability: 'HIGH' | 'MEDIUM' | 'LOW' | 'INSUFFICIENT_DATA';
+  isReliable: boolean;
+  explanation: string;
+  clinicPolicyNotice: string;
+  lastCalculatedAt: string;
+}
+
+export async function fetchSmartArrival(appointmentId: string): Promise<SmartArrivalData | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/appointments/${appointmentId}/smart-arrival`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    console.error('Error fetching Smart Arrival data:', e);
+    return null;
+  }
+}
+
+export async function fetchSmartArrivalByToken(token: string): Promise<SmartArrivalData | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/queue/smart-arrival?token=${encodeURIComponent(token)}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    console.error('Error fetching Smart Arrival by token:', e);
+    return null;
+  }
+}
+
+export async function updateTravelDurationApi(appointmentId: string, travelDurationMinutes: number): Promise<SmartArrivalData | null> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/appointments/${appointmentId}/travel-duration`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ travelDurationMinutes }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    console.error('Error updating travel duration:', e);
+    return null;
+  }
+}
+

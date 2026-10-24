@@ -11,6 +11,8 @@
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -43,6 +45,8 @@
     --foreground: #171717; /* Dark charcoal instead of pure black */
     --card: #FFFFFF;
     --card-foreground: #171717;
+    --sidebar: #FAFAF9;
+    --sidebar-foreground: #171717;
     --border: #E5E5E3;
     --input: #E5E5E3;
     --ring: #171717;
@@ -62,24 +66,26 @@
   }
 
   .dark {
-    --background: #09090B; /* Deep charcoal */
-    --foreground: #FAFAFA; /* Off-white */
-    --card: #141415; /* Slightly lighter charcoal */
-    --card-foreground: #FAFAFA;
-    --border: #27272A; /* Subtle dark gray */
-    --input: #27272A;
-    --ring: #FAFAFA;
-    --primary: #FAFAFA;
-    --primary-foreground: #09090B;
-    --secondary: #1F1F22;
-    --secondary-foreground: #FAFAFA;
-    --muted: #1F1F22;
-    --muted-foreground: #A1A1AA; /* Soft gray */
-    --accent: #1F1F22;
-    --accent-foreground: #FAFAFA;
-    --brand: #3B82F6; /* Bright healthcare blue */
+    --background: #0B0F14; /* Page background: #0B0F14 */
+    --foreground: #F8FAFC; /* Primary text: #F8FAFC */
+    --card: #151A22; /* Card background: #151A22 */
+    --card-foreground: #F8FAFC;
+    --sidebar: #090B0F; /* Sidebar background: #090B0F */
+    --sidebar-foreground: #F8FAFC;
+    --border: #303846; /* Borders: #303846 */
+    --input: #303846;
+    --ring: #3B82F6;
+    --primary: #F8FAFC;
+    --primary-foreground: #0B0F14;
+    --secondary: #1E2532; /* Contrast secondary container */
+    --secondary-foreground: #F8FAFC;
+    --muted: #1A222E;
+    --muted-foreground: #CBD5E1; /* Secondary text: #CBD5E1 */
+    --accent: #1E2532;
+    --accent-foreground: #F8FAFC;
+    --brand: #3B82F6; /* Primary blue: #3B82F6 */
     --brand-foreground: #FFFFFF;
-    --destructive: #7f1d1d;
+    --destructive: #ef4444;
     --destructive-foreground: #fafafa;
   }
 

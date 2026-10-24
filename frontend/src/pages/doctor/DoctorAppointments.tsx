@@ -28,11 +28,18 @@ export function DoctorAppointments() {
   useEffect(() => {
     initQueueSync(doctorId);
     const refresh = () => setAppointments(getAppointmentsForDoctor(doctorId, doctorName));
+
     window.addEventListener('medisync:queue-update', refresh);
     window.addEventListener('caretrack:queue-update', refresh);
+    window.addEventListener('storage', refresh);
+
+    const timer = setInterval(refresh, 2500);
+
     return () => {
       window.removeEventListener('medisync:queue-update', refresh);
       window.removeEventListener('caretrack:queue-update', refresh);
+      window.removeEventListener('storage', refresh);
+      clearInterval(timer);
     };
   }, [doctorId, doctorName]);
 

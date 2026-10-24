@@ -30,7 +30,7 @@ export function Sidebar() {
   const navigate = useNavigate();
 
   return (
-    <aside className="hidden md:flex flex-col w-64 h-screen border-r border-border bg-background">
+    <aside className="hidden md:flex flex-col w-64 shrink-0 h-screen border-r border-border bg-sidebar text-sidebar-foreground">
       <div className="p-6">
         <MediSyncLogoCompact />
       </div>

@@ -7,6 +7,7 @@ import { fetchPatientQueueStatus } from '../lib/supabase';
 import { DoctorAvatar } from '../components/common/DoctorAvatar';
 import { mockDoctors } from '../lib/doctors';
 import { HospitalMapModal, hospitalRooms } from '../components/common/HospitalMapModal';
+import { SmartArrivalCard } from '../components/common/SmartArrivalCard';
 import { MediSyncIcon } from '../components/ui/Logo';
 
 export function QueueTracking() {
@@ -285,6 +286,21 @@ export function QueueTracking() {
               </div>
             </div>
           </motion.div>
+
+          {/* ── MediSync Smart Arrival Dynamic Departure Panel ────────── */}
+          {activeAppt && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 }}
+            >
+              <SmartArrivalCard
+                appointment={activeAppt}
+                queueState={queueState}
+                onRefresh={() => setAllAppointments(loadAllAppointments())}
+              />
+            </motion.div>
+          )}
 
           {/* ── Status & Notification Banner ────────────────────────────── */}
           <motion.div

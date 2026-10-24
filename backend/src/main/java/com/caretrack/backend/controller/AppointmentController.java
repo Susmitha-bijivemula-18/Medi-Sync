@@ -1,10 +1,14 @@
 package com.caretrack.backend.controller;
 
+import com.caretrack.backend.dto.SmartArrivalDTO;
 import com.caretrack.backend.entity.Appointment;
 import com.caretrack.backend.entity.Doctor;
+import com.caretrack.backend.entity.PatientUser;
 import com.caretrack.backend.repository.AppointmentRepository;
 import com.caretrack.backend.repository.DoctorRepository;
+import com.caretrack.backend.repository.PatientUserRepository;
 import com.caretrack.backend.service.QueueNotificationService;
+import com.caretrack.backend.service.SmartArrivalService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +19,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api")
@@ -23,15 +28,21 @@ public class AppointmentController {
 
     private final AppointmentRepository appointmentRepository;
     private final DoctorRepository doctorRepository;
+    private final PatientUserRepository patientUserRepository;
     private final QueueNotificationService queueNotificationService;
+    private final SmartArrivalService smartArrivalService;
 
     public AppointmentController(
             AppointmentRepository appointmentRepository,
             DoctorRepository doctorRepository,
-            QueueNotificationService queueNotificationService) {
+            PatientUserRepository patientUserRepository,
+            QueueNotificationService queueNotificationService,
+            SmartArrivalService smartArrivalService) {
         this.appointmentRepository = appointmentRepository;
         this.doctorRepository = doctorRepository;
+        this.patientUserRepository = patientUserRepository;
         this.queueNotificationService = queueNotificationService;
+        this.smartArrivalService = smartArrivalService;
     }
 
     private UUID resolveDoctorId(String doctorIdStr) {
@@ -256,22 +267,85 @@ public class AppointmentController {
         Doctor doctor = doctorOpt.get();
         Appointment appointment = new Appointment();
         appointment.setDoctor(doctor);
-        appointment.setPatientName(payload.get("patientName") != null ? payload.get("patientName").toString() : "Patient");
+
+        String patientName = payload.get("patientName") != null ? payload.get("patientName").toString().trim() : 
+                            (payload.get("patient_name") != null ? payload.get("patient_name").toString().trim() : "Patient");
+        appointment.setPatientName(patientName);
         
         int age = 30;
         if (payload.get("patientAge") != null) {
             try {
                 age = Integer.parseInt(payload.get("patientAge").toString());
             } catch (Exception ignored) {}
+        } else if (payload.get("patient_age") != null) {
+            try {
+                age = Integer.parseInt(payload.get("patient_age").toString());
+            } catch (Exception ignored) {}
         }
         appointment.setPatientAge(age);
 
-        appointment.setPatientEmail(payload.get("patientEmail") != null ? payload.get("patientEmail").toString() : "");
-        appointment.setPatientPhone(payload.get("patientPhone") != null ? payload.get("patientPhone").toString() : "");
-        appointment.setBloodGroup(payload.get("bloodGroup") != null ? payload.get("bloodGroup").toString() : (payload.get("blood_group") != null ? payload.get("blood_group").toString() : ""));
-        appointment.setLocation(payload.get("location") != null ? payload.get("location").toString() : "");
+        String patientEmail = payload.get("patientEmail") != null ? payload.get("patientEmail").toString().trim() : 
+                             (payload.get("patient_email") != null ? payload.get("patient_email").toString().trim() : "");
+        String patientPhone = payload.get("patientPhone") != null ? payload.get("patientPhone").toString().trim() : 
+                              (payload.get("patient_phone") != null ? payload.get("patient_phone").toString().trim() : "");
+        String bloodGroup = payload.get("bloodGroup") != null ? payload.get("bloodGroup").toString().trim() : 
+                            (payload.get("blood_group") != null ? payload.get("blood_group").toString().trim() : "");
+        String location = payload.get("location") != null ? payload.get("location").toString().trim() : "";
+
+        appointment.setPatientEmail(patientEmail);
+        appointment.setPatientPhone(patientPhone);
+        appointment.setBloodGroup(bloodGroup);
+        appointment.setLocation(location);
         appointment.setProblemDescription(payload.get("problemDescription") != null ? payload.get("problemDescription").toString() : "");
         appointment.setProblemCategory(payload.get("problemCategory") != null ? payload.get("problemCategory").toString() : doctor.getSpecialization());
+
+        // Resolve and link patientId with PatientUser database entity
+        String patientId = "";
+        if (payload.get("patientId") != null && !payload.get("patientId").toString().isBlank()) {
+            patientId = payload.get("patientId").toString().trim();
+        } else if (payload.get("patient_id") != null && !payload.get("patient_id").toString().isBlank()) {
+            patientId = payload.get("patient_id").toString().trim();
+        }
+
+        if ((patientId == null || patientId.isBlank()) && !patientEmail.isBlank()) {
+            try {
+                Optional<PatientUser> existingPatient = patientUserRepository.findByEmail(patientEmail);
+                if (existingPatient.isPresent()) {
+                    PatientUser pu = existingPatient.get();
+                    patientId = pu.getId().toString();
+                    boolean changed = false;
+                    if ((pu.getFullName() == null || pu.getFullName().isBlank()) && !patientName.isBlank()) {
+                        pu.setFullName(patientName);
+                        changed = true;
+                    }
+                    if ((pu.getPhone() == null || pu.getPhone().isBlank()) && !patientPhone.isBlank()) {
+                        pu.setPhone(patientPhone);
+                        changed = true;
+                    }
+                    if ((pu.getBloodGroup() == null || pu.getBloodGroup().isBlank()) && !bloodGroup.isBlank()) {
+                        pu.setBloodGroup(bloodGroup);
+                        changed = true;
+                    }
+                    if ((pu.getLocation() == null || pu.getLocation().isBlank()) && !location.isBlank()) {
+                        pu.setLocation(location);
+                        changed = true;
+                    }
+                    if (changed) patientUserRepository.save(pu);
+                } else {
+                    PatientUser newPu = new PatientUser();
+                    newPu.setEmail(patientEmail);
+                    newPu.setPassword("patient123");
+                    newPu.setFullName(patientName);
+                    newPu.setPhone(patientPhone);
+                    newPu.setAge(age);
+                    newPu.setBloodGroup(bloodGroup);
+                    newPu.setLocation(location);
+                    PatientUser savedPu = patientUserRepository.save(newPu);
+                    patientId = savedPu.getId().toString();
+                }
+            } catch (Exception ignored) {}
+        }
+        appointment.setPatientId(patientId);
 
         LocalDate appointmentDate = LocalDate.now();
         if (payload.get("appointmentDate") != null && !payload.get("appointmentDate").toString().isBlank()) {
@@ -354,13 +428,16 @@ public class AppointmentController {
 
         Appointment saved = appointmentRepository.save(appointment);
 
-        // Broadcast SSE real-time update to both Doctor and Patient portals
+        // Broadcast SSE real-time update to both Doctor and Patient portals with linked doctor & patient info
         queueNotificationService.broadcastQueueUpdate("queue-update", Map.of(
             "action", "NEW_BOOKING",
             "doctorId", doctor.getId().toString(),
+            "doctorName", doctor.getFullName(),
+            "specialization", doctor.getSpecialization(),
+            "patientId", saved.getPatientId() != null ? saved.getPatientId() : "",
+            "patientName", saved.getPatientName(),
             "appointmentId", saved.getId().toString(),
-            "tokenNumber", saved.getTokenNumber() != null ? saved.getTokenNumber() : "",
-            "patientName", saved.getPatientName()
+            "tokenNumber", saved.getTokenNumber() != null ? saved.getTokenNumber() : ""
         ));
 
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
@@ -614,7 +691,8 @@ public class AppointmentController {
         String dayOfWeek = targetDate.getDayOfWeek().toString().substring(0, 1) + 
                            targetDate.getDayOfWeek().toString().substring(1).toLowerCase();
         boolean isWorkingDay = doc.getAvailableDays() == null || doc.getAvailableDays().isEmpty() ||
-            doc.getAvailableDays().stream().anyMatch(d -> d.equalsIgnoreCase(dayOfWeek));
+            doc.getAvailableDays().stream().anyMatch(d -> d.equalsIgnoreCase(dayOfWeek)) ||
+            dayOfWeek.equalsIgnoreCase("Saturday") || dayOfWeek.equalsIgnoreCase("Sunday");
 
         if (!isWorkingDay) {
             return ResponseEntity.ok(Collections.emptyList());
@@ -631,9 +709,12 @@ public class AppointmentController {
             }
         }
 
-        // Generate slots between availableFrom and availableTo
+        // Generate slots between availableFrom and availableTo (Extended to 9:00 PM / 21:00)
         LocalTime start = doc.getAvailableFrom() != null ? doc.getAvailableFrom() : LocalTime.of(9, 0);
-        LocalTime end = doc.getAvailableTo() != null ? doc.getAvailableTo() : LocalTime.of(17, 0);
+        LocalTime end = doc.getAvailableTo() != null ? doc.getAvailableTo() : LocalTime.of(21, 0);
+        if (end.isBefore(LocalTime.of(21, 0))) {
+            end = LocalTime.of(21, 0);
+        }
         LocalTime breakStart = doc.getBreakStart() != null ? doc.getBreakStart() : LocalTime.of(13, 0);
         LocalTime breakEnd = doc.getBreakEnd() != null ? doc.getBreakEnd() : LocalTime.of(14, 0);
         int duration = doc.getSlotDuration() != null ? doc.getSlotDuration() : 20;
@@ -681,11 +762,14 @@ public class AppointmentController {
         Appointment userAppt = null;
         if (token != null && !token.isBlank()) {
             String cleanToken = token.trim();
-            userAppt = appointmentRepository.findByTokenNumber(cleanToken)
-                .or(() -> appointmentRepository.findAll().stream()
+            List<Appointment> tokenMatches = appointmentRepository.findByTokenNumberOrderByCreatedAtDesc(cleanToken);
+            userAppt = !tokenMatches.isEmpty() ? tokenMatches.get(0) : null;
+            if (userAppt == null) {
+                userAppt = appointmentRepository.findAll().stream()
                     .filter(a -> a.getTokenNumber() != null && a.getTokenNumber().trim().equalsIgnoreCase(cleanToken))
-                    .findFirst())
-                .orElse(null);
+                    .findFirst()
+                    .orElse(null);
+            }
 
             if (userAppt != null && doctorId == null && userAppt.getDoctor() != null) {
                 doctorId = userAppt.getDoctor().getId();
@@ -754,12 +838,140 @@ public class AppointmentController {
         ));
     }
 
-    // ─── 8. Patient Appointment History ──────────────────────────────────────
+    // ─── 7b. MediSync Smart Arrival Endpoints ─────────────────────────────────
+
+    @GetMapping("/appointments/{id}/smart-arrival")
+    public ResponseEntity<?> getAppointmentSmartArrival(@PathVariable UUID id) {
+        Appointment appt = appointmentRepository.findById(id).orElse(null);
+        if (appt == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Appointment not found"));
+        }
+        SmartArrivalDTO dto = smartArrivalService.calculateSmartArrival(appt);
+        return ResponseEntity.ok(dto);
+    }
+
+    @PutMapping("/appointments/{id}/travel-duration")
+    public ResponseEntity<?> updateTravelDuration(
+            @PathVariable UUID id,
+            @RequestBody Map<String, Object> payload) {
+        Appointment appt = appointmentRepository.findById(id).orElse(null);
+        if (appt == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Appointment not found"));
+        }
+
+        if (payload.containsKey("travelDurationMinutes")) {
+            try {
+                int minutes = Integer.parseInt(payload.get("travelDurationMinutes").toString());
+                appt.setTravelDurationMinutes(Math.max(5, Math.min(240, minutes)));
+                appointmentRepository.save(appt);
+            } catch (Exception ignored) {}
+        }
+
+        SmartArrivalDTO dto = smartArrivalService.calculateSmartArrival(appt);
+
+        // Broadcast real-time event to SSE clients
+        queueNotificationService.broadcastQueueUpdate("smart-arrival-update", dto);
+        queueNotificationService.broadcastQueueUpdate("queue-update", Map.of(
+            "action", "TRAVEL_DURATION_UPDATED",
+            "appointmentId", appt.getId().toString(),
+            "travelDurationMinutes", appt.getTravelDurationMinutes()
+        ));
+
+        return ResponseEntity.ok(dto);
+    }
+
+    @GetMapping("/queue/smart-arrival")
+    public ResponseEntity<?> getQueueSmartArrival(
+            @RequestParam(name = "token", required = false) String token,
+            @RequestParam(name = "appointmentId", required = false) String appointmentIdStr) {
+        Appointment appt = null;
+        if (appointmentIdStr != null && !appointmentIdStr.isBlank()) {
+            try {
+                appt = appointmentRepository.findById(UUID.fromString(appointmentIdStr)).orElse(null);
+            } catch (Exception ignored) {}
+        }
+        if (appt == null && token != null && !token.isBlank()) {
+            List<Appointment> list = appointmentRepository.findByTokenNumberOrderByCreatedAtDesc(token.trim().toUpperCase());
+            if (!list.isEmpty()) {
+                appt = list.get(0);
+            } else {
+                appt = appointmentRepository.findAll().stream()
+                    .filter(a -> a.getTokenNumber() != null && a.getTokenNumber().trim().equalsIgnoreCase(token.trim()))
+                    .findFirst()
+                    .orElse(null);
+            }
+        }
+        if (appt == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Appointment not found for Smart Arrival"));
+        }
+        SmartArrivalDTO dto = smartArrivalService.calculateSmartArrival(appt);
+        return ResponseEntity.ok(dto);
+    }
+
+    // ─── 8. Patient Appointment History & Doctor Patients Linkage ────────────
 
     @GetMapping("/appointments/patient/{query}")
     public ResponseEntity<?> getPatientAppointments(@PathVariable String query) {
-        List<Appointment> list = appointmentRepository.findByPatientPhoneOrPatientEmailOrderByCreatedAtDesc(query, query);
-        return ResponseEntity.ok(list);
+        List<Appointment> list = new ArrayList<>();
+        list.addAll(appointmentRepository.findByPatientIdOrderByCreatedAtDesc(query));
+        list.addAll(appointmentRepository.findByPatientEmailOrderByCreatedAtDesc(query));
+        list.addAll(appointmentRepository.findByPatientPhoneOrPatientEmailOrderByCreatedAtDesc(query, query));
+        
+        Map<UUID, Appointment> unique = new LinkedHashMap<>();
+        for (Appointment a : list) {
+            unique.putIfAbsent(a.getId(), a);
+        }
+        return ResponseEntity.ok(new ArrayList<>(unique.values()));
+    }
+
+    @GetMapping("/doctors/{doctorId}/patients")
+    public ResponseEntity<?> getDoctorPatients(@PathVariable String doctorId) {
+        UUID docUuid = resolveDoctorId(doctorId);
+        if (docUuid == null) {
+            return ResponseEntity.ok(Collections.emptyList());
+        }
+
+        List<Appointment> docAppts = appointmentRepository.findByDoctorIdOrderByCreatedAtDesc(docUuid);
+        Map<String, Map<String, Object>> patientMap = new LinkedHashMap<>();
+
+        for (Appointment a : docAppts) {
+            String key = (a.getPatientId() != null && !a.getPatientId().isBlank())
+                ? a.getPatientId()
+                : ((a.getPatientEmail() != null && !a.getPatientEmail().isBlank()) ? a.getPatientEmail() : a.getPatientPhone());
+            
+            if (key == null || key.isBlank()) key = a.getPatientName();
+
+            if (!patientMap.containsKey(key)) {
+                Map<String, Object> patientInfo = new LinkedHashMap<>();
+                patientInfo.put("patientId", a.getPatientId() != null ? a.getPatientId() : "");
+                patientInfo.put("patientName", a.getPatientName());
+                patientInfo.put("patientAge", a.getPatientAge());
+                patientInfo.put("patientEmail", a.getPatientEmail());
+                patientInfo.put("patientPhone", a.getPatientPhone());
+                patientInfo.put("bloodGroup", a.getBloodGroup());
+                patientInfo.put("location", a.getLocation());
+                patientInfo.put("totalAppointments", 1);
+                patientInfo.put("latestAppointmentDate", a.getAppointmentDate());
+                patientInfo.put("latestAppointmentTime", a.getAppointmentTime());
+                patientInfo.put("latestStatus", a.getStatus());
+                patientInfo.put("latestToken", a.getTokenNumber());
+                patientInfo.put("doctorId", docUuid.toString());
+                patientInfo.put("doctorName", a.getDoctor() != null ? a.getDoctor().getFullName() : "");
+                patientInfo.put("specialization", a.getDoctor() != null ? a.getDoctor().getSpecialization() : "");
+                List<Appointment> records = new ArrayList<>();
+                records.add(a);
+                patientInfo.put("records", records);
+                patientMap.put(key, patientInfo);
+            } else {
+                Map<String, Object> existing = patientMap.get(key);
+                existing.put("totalAppointments", ((Integer) existing.get("totalAppointments")) + 1);
+                @SuppressWarnings("unchecked")
+                List<Appointment> records = (List<Appointment>) existing.get("records");
+                records.add(a);
+            }
+        }
+
+        return ResponseEntity.ok(new ArrayList<>(patientMap.values()));
     }
 
     // ─── 9. Delete Appointment & Purge Dummy Data ────────────────────────────

@@ -28,6 +28,23 @@ public class DataInitializer implements CommandLineRunner {
     public void run(String... args) {
         if (doctorRepository.count() == 0) {
             seedDoctors();
+        } else {
+            // Ensure all existing doctors have availability up to 9 PM (21:00) and all 7 days active
+            List<Doctor> existingDocs = doctorRepository.findAll();
+            boolean changed = false;
+            for (Doctor d : existingDocs) {
+                if (d.getAvailableTo() == null || d.getAvailableTo().isBefore(LocalTime.of(21, 0))) {
+                    d.setAvailableTo(LocalTime.of(21, 0));
+                    changed = true;
+                }
+                if (d.getAvailableDays() == null || !d.getAvailableDays().contains("Saturday") || !d.getAvailableDays().contains("Sunday")) {
+                    d.setAvailableDays(new ArrayList<>(List.of("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")));
+                    changed = true;
+                }
+            }
+            if (changed) {
+                doctorRepository.saveAll(existingDocs);
+            }
         }
 
         // Normalize future appointments: if appointment date is not today, ensure status is 'scheduled' without wiping token
@@ -79,9 +96,9 @@ public class DataInitializer implements CommandLineRunner {
         doc.setQualification(qual);
         doc.setExperienceYears(exp);
         doc.setConsultationFee(new BigDecimal(fee));
-        doc.setAvailableDays(new ArrayList<>(List.of("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")));
+        doc.setAvailableDays(new ArrayList<>(List.of("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")));
         doc.setAvailableFrom(LocalTime.of(9, 0));
-        doc.setAvailableTo(LocalTime.of(17, 0));
+        doc.setAvailableTo(LocalTime.of(21, 0));
         doc.setSlotDuration(20);
         doc.setBreakStart(LocalTime.of(13, 0));
         doc.setBreakEnd(LocalTime.of(14, 0));

@@ -49,9 +49,10 @@ export function DoctorPatients() {
     };
   }, [doctorId, doctorName]);
 
-  // Group appointments by unique patient (using patientPhone or patientEmail as identity key)
+  // Group appointments by unique patient (using patientId, patientPhone or patientEmail as identity key)
   const patientsMap = useMemo(() => {
     const map = new Map<string, {
+      patientId?: string;
       patientName: string;
       patientAge: number;
       patientPhone: string;
@@ -63,9 +64,10 @@ export function DoctorPatients() {
     }>();
 
     appointments.forEach((appt) => {
-      const key = appt.patientPhone || appt.patientEmail || appt.patientName;
+      const key = appt.patientId || appt.patientPhone || appt.patientEmail || appt.patientName;
       if (!map.has(key)) {
         map.set(key, {
+          patientId: appt.patientId,
           patientName: appt.patientName,
           patientAge: appt.patientAge,
           patientPhone: appt.patientPhone,

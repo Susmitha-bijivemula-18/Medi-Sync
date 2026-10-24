@@ -34,13 +34,13 @@ public class Doctor {
 
     @Convert(converter = StringListConverter.class)
     @Column(name = "available_days", length = 500)
-    private List<String> availableDays = new ArrayList<>(List.of("Monday", "Tuesday", "Wednesday", "Thursday", "Friday"));
+    private List<String> availableDays = new ArrayList<>(List.of("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"));
 
     @Column(name = "available_from")
     private LocalTime availableFrom = LocalTime.of(9, 0);
 
     @Column(name = "available_to")
-    private LocalTime availableTo = LocalTime.of(17, 0);
+    private LocalTime availableTo = LocalTime.of(21, 0);
 
     @Column(name = "slot_duration")
     private Integer slotDuration = 20;

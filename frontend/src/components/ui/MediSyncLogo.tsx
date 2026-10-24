@@ -194,17 +194,21 @@ export function MediSyncLogo({
   // Explicit styling guarantees "Medi" is dark and prominently legible everywhere.
   const isDarkExplicit = theme === 'dark';
 
-  const mediStyle: React.CSSProperties = {
-    color: isDarkExplicit ? '#F8FAFC' : '#102747',
-  };
+  const mediStyle: React.CSSProperties = isDarkExplicit
+    ? { color: '#F8FAFC' }
+    : theme === 'light'
+    ? { color: '#102747' }
+    : {};
 
   const syncStyle: React.CSSProperties = {
-    color: '#1677F2',
+    color: '#3B82F6',
   };
 
-  const taglineStyle: React.CSSProperties = {
-    color: isDarkExplicit ? '#94A3B8' : '#64748B',
-  };
+  const taglineStyle: React.CSSProperties = isDarkExplicit
+    ? { color: '#CBD5E1' }
+    : theme === 'light'
+    ? { color: '#64748B' }
+    : {};
 
   const content = (
     <div className={`inline-flex flex-col group select-none ${className}`}>
@@ -221,13 +225,13 @@ export function MediSyncLogo({
           >
             <span
               style={mediStyle}
-              className="text-[#102747] font-bold"
+              className="text-[#102747] dark:text-[#F8FAFC] font-bold transition-colors"
             >
               Medi
             </span>
             <span
               style={syncStyle}
-              className="text-[#1677F2] font-bold"
+              className="text-[#3B82F6] font-bold transition-colors"
             >
               Sync
             </span>
@@ -239,7 +243,7 @@ export function MediSyncLogo({
       {variant === 'full' && (
         <div
           style={taglineStyle}
-          className={`uppercase font-semibold mt-1 tracking-wider ${config.plClass} ${config.taglineClass}`}
+          className={`uppercase font-semibold mt-1 tracking-wider text-muted-foreground ${config.plClass} ${config.taglineClass}`}
         >
           Better Care. Less Waiting.
         </div>

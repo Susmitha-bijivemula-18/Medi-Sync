@@ -43,7 +43,7 @@ export function AppLayout() {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-64 bg-card border-r border-border z-50 flex flex-col md:hidden"
+              className="fixed inset-y-0 left-0 w-64 bg-sidebar text-sidebar-foreground border-r border-border z-50 flex flex-col md:hidden shadow-xl"
             >
               <div className="flex items-center justify-between p-6">
                 <MediSyncLogoCompact onClick={() => setIsMobileMenuOpen(false)} />
@@ -94,10 +94,10 @@ export function AppLayout() {
         )}
       </AnimatePresence>
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden w-full">
         <Topbar onMenuClick={() => setIsMobileMenuOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          <div className="max-w-6xl mx-auto">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-3.5 sm:p-6 lg:p-8 min-w-0 w-full">
+          <div className="w-full max-w-6xl mx-auto min-w-0">
             <Outlet />
           </div>
         </main>
