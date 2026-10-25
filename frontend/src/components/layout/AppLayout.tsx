@@ -3,9 +3,10 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
-import { X, LayoutDashboard, Search, Calendar, Users, FileText, Activity, Bell, User, Settings, LogOut } from 'lucide-react';
+import { X, LayoutDashboard, Search, Calendar, Users, FileText, Bell, LogOut } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { MediSyncLogoCompact } from '../ui/Logo';
+import { useQueueAutoNotifier } from '../../lib/useQueueAutoNotifier';
 
 const navItems = [
   { name: 'Dashboard', path: '/patient/dashboard', icon: LayoutDashboard },
@@ -13,15 +14,15 @@ const navItems = [
   { name: 'Appointments', path: '/patient/appointments', icon: Calendar },
   { name: 'Queue', path: '/patient/queue', icon: Users },
   { name: 'Medical Records', path: '/patient/records', icon: FileText },
-  { name: 'Health History', path: '/patient/history', icon: Activity },
   { name: 'Notifications', path: '/patient/notifications', icon: Bell },
-  { name: 'Profile', path: '/patient/profile', icon: User },
-  { name: 'Settings', path: '/patient/settings', icon: Settings },
 ];
 
 export function AppLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+
+  // Automatically watch and alert whenever queue advances or patient's turn is called
+  useQueueAutoNotifier();
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">

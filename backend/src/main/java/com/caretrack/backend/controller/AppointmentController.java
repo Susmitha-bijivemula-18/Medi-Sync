@@ -9,6 +9,7 @@ import com.caretrack.backend.repository.DoctorRepository;
 import com.caretrack.backend.repository.PatientUserRepository;
 import com.caretrack.backend.service.QueueNotificationService;
 import com.caretrack.backend.service.SmartArrivalService;
+import com.caretrack.backend.service.SmsNotificationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -31,18 +32,21 @@ public class AppointmentController {
     private final PatientUserRepository patientUserRepository;
     private final QueueNotificationService queueNotificationService;
     private final SmartArrivalService smartArrivalService;
+    private final SmsNotificationService smsNotificationService;
 
     public AppointmentController(
             AppointmentRepository appointmentRepository,
             DoctorRepository doctorRepository,
             PatientUserRepository patientUserRepository,
             QueueNotificationService queueNotificationService,
-            SmartArrivalService smartArrivalService) {
+            SmartArrivalService smartArrivalService,
+            SmsNotificationService smsNotificationService) {
         this.appointmentRepository = appointmentRepository;
         this.doctorRepository = doctorRepository;
         this.patientUserRepository = patientUserRepository;
         this.queueNotificationService = queueNotificationService;
         this.smartArrivalService = smartArrivalService;
+        this.smsNotificationService = smsNotificationService;
     }
 
     private UUID resolveDoctorId(String doctorIdStr) {
@@ -532,7 +536,16 @@ public class AppointmentController {
             current.setStatus("completed");
             current.setQueueStatus("completed");
             current.setCompletedAt(LocalTime.now().format(DateTimeFormatter.ofPattern("hh:mm a")).toUpperCase());
-            appointmentRepository.save(current);
+            Appointment completedAppt = appointmentRepository.save(current);
+
+            // Automated message to patient whose consultation concluded
+            String currentDocName = completedAppt.getDoctor() != null ? completedAppt.getDoctor().getFullName() : "Dr. Sarah Jenkins";
+            smsNotificationService.notifyConsultationCompleted(
+                completedAppt.getPatientPhone(),
+                completedAppt.getTokenNumber(),
+                currentDocName,
+                completedAppt.getPrescription()
+            );
         }
 
         // Find next waiting patient ordered by appointment timing
@@ -554,6 +567,29 @@ public class AppointmentController {
         nextPatient.setQueueStatus("in-consultation");
         nextPatient.setCalledAt(LocalTime.now().format(DateTimeFormatter.ofPattern("hh:mm a")).toUpperCase());
         Appointment saved = appointmentRepository.save(nextPatient);
+
+        // Automated Notification Dispatch: 1. Notify the patient whose turn has arrived
+        String docFullName = saved.getDoctor() != null ? saved.getDoctor().getFullName() : "Dr. Sarah Jenkins";
+        smsNotificationService.notifyCalledPatient(
+            saved.getPatientPhone(),
+            saved.getTokenNumber(),
+            docFullName,
+            "204"
+        );
+
+        // Automated Notification Dispatch: 2. Notify the next waiting patient that the queue moved forward
+        allToday.stream()
+            .filter(a -> "waiting".equalsIgnoreCase(a.getStatus()) && !a.getId().equals(saved.getId()))
+            .sorted(APPOINTMENT_TIME_COMPARATOR)
+            .findFirst()
+            .ifPresent(nextInLine -> {
+                smsNotificationService.notifyNextInLine(
+                    nextInLine.getPatientPhone(),
+                    nextInLine.getTokenNumber(),
+                    docFullName,
+                    "204"
+                );
+            });
 
         // Broadcast to patient & doctor portals
         queueNotificationService.broadcastQueueUpdate("queue-update", Map.of(
@@ -660,7 +696,30 @@ public class AppointmentController {
             "doctorId", saved.getDoctor().getId().toString()
         ));
 
+        // Automated message to patient if status changed to completed
+        if ("completed".equalsIgnoreCase(saved.getStatus())) {
+            String docName = saved.getDoctor() != null ? saved.getDoctor().getFullName() : "Dr. Sarah Jenkins";
+            smsNotificationService.notifyConsultationCompleted(
+                saved.getPatientPhone(),
+                saved.getTokenNumber(),
+                docName,
+                saved.getPrescription()
+            );
+        }
+
         return ResponseEntity.ok(saved);
+    }
+
+    // ─── 5b. Direct Automated SMS Dispatch Endpoint ──────────────────────────
+    @PostMapping("/sms/send")
+    public ResponseEntity<?> sendDirectSms(@RequestBody Map<String, String> payload) {
+        String phone = payload.get("phone");
+        String message = payload.get("message");
+        if (phone == null || phone.isBlank() || message == null || message.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Phone and message required"));
+        }
+        boolean sent = smsNotificationService.sendSms(phone, message);
+        return ResponseEntity.ok(Map.of("success", sent, "deliveredTo", phone));
     }
 
     // ─── 6. Doctor Available Slots Calculation (Respects Bookings & Breaks) ───

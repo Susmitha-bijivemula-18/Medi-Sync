@@ -1,4 +1,4 @@
-import { Menu, Moon, Sun, Bell } from 'lucide-react';
+import { Menu, Moon, Sun, Bell, Settings } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MediSyncIcon } from '../ui/Logo';
@@ -58,10 +58,20 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-primary rounded-full border-[1.5px] border-background"></span>
         </button>
 
+        <button 
+          id="topbar-settings-btn"
+          onClick={() => navigate('/patient/settings')}
+          className="p-2 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          title="Account Settings"
+          aria-label="Settings"
+        >
+          <Settings className="w-4 h-4" />
+        </button>
+
         <div 
           id="topbar-profile-btn"
           onClick={() => navigate('/patient/profile')}
-          className="h-7 w-7 rounded-full bg-secondary flex items-center justify-center border border-border ml-2 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+          className="h-7 w-7 rounded-full bg-secondary flex items-center justify-center border border-border ml-1.5 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
           title="My Profile"
         >
           <span className="text-[11px] font-semibold text-secondary-foreground tracking-wider">SU</span>

@@ -5,10 +5,7 @@ import {
   Calendar, 
   Users, 
   FileText, 
-  Activity, 
   Bell, 
-  User, 
-  Settings, 
   LogOut 
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -20,10 +17,7 @@ const navItems = [
   { name: 'Appointments', path: '/patient/appointments', icon: Calendar },
   { name: 'Queue', path: '/patient/queue', icon: Users },
   { name: 'Medical Records', path: '/patient/records', icon: FileText },
-  { name: 'Health History', path: '/patient/history', icon: Activity },
   { name: 'Notifications', path: '/patient/notifications', icon: Bell },
-  { name: 'Profile', path: '/patient/profile', icon: User },
-  { name: 'Settings', path: '/patient/settings', icon: Settings },
 ];
 
 export function Sidebar() {

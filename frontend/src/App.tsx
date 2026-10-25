@@ -21,7 +21,6 @@ import { DoctorPatients } from './pages/doctor/DoctorPatients';
 import { PatientDoctors } from './pages/patient/PatientDoctors';
 import { PatientAppointments } from './pages/patient/PatientAppointments';
 import { PatientRecords } from './pages/patient/PatientRecords';
-import { PatientHistory } from './pages/patient/PatientHistory';
 import { PatientNotifications } from './pages/patient/PatientNotifications';
 import { PatientProfile } from './pages/patient/PatientProfile';
 import { PatientSettings } from './pages/patient/PatientSettings';
@@ -45,7 +44,7 @@ function App() {
           <Route path="appointments" element={<PatientAppointments />} />
           <Route path="queue" element={<QueueTracking />} />
           <Route path="records" element={<PatientRecords />} />
-          <Route path="history" element={<PatientHistory />} />
+          <Route path="history" element={<Navigate to="records" replace />} />
           <Route path="notifications" element={<PatientNotifications />} />
           <Route path="profile" element={<PatientProfile />} />
           <Route path="settings" element={<PatientSettings />} />

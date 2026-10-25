@@ -251,18 +251,32 @@ export function SmartArrivalCard({
         <div className="space-y-1">
           <span className="text-[11px] uppercase font-bold tracking-wider text-blue-600 dark:text-blue-300 flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5" />
-            Recommended Departure Window
+            {data.departureStatus === 'ARRIVED' 
+              ? 'Clinic Arrival Window Active' 
+              : (data.departureStatus === 'IN_CONSULTATION' 
+                ? 'Consultation In Progress' 
+                : 'Recommended Departure Window')}
           </span>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-              {data.departureWindowStart} – {data.departureWindowEnd}
+              {data.departureStatus === 'ARRIVED'
+                ? 'Arrived at Clinic'
+                : (data.departureStatus === 'IN_CONSULTATION'
+                  ? 'In Doctor Room'
+                  : `${data.departureWindowStart} – ${data.departureWindowEnd}`)}
             </span>
           </div>
           <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-            Target hospital arrival:{' '}
-            <strong className="text-foreground font-semibold">{data.targetArrivalTime}</strong>
-            <span className="text-muted-foreground/60">•</span>
-            Includes {data.arrivalBufferMinutes}m check-in buffer
+            {data.departureStatus === 'ARRIVED' ? (
+              <span>You are within 1 hour of your consultation slot. Please remain seated in the OPD waiting lounge.</span>
+            ) : (
+              <>
+                Target hospital arrival:{' '}
+                <strong className="text-foreground font-semibold">{data.targetArrivalTime}</strong>
+                <span className="text-muted-foreground/60">•</span>
+                Includes {data.arrivalBufferMinutes}m check-in buffer
+              </>
+            )}
           </p>
         </div>
 
